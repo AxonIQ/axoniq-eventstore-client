@@ -6,6 +6,7 @@
         <artifactId>event-store</artifactId>
         <groupId>io.axoniq</groupId>
         <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath> <!-- Temporary fix -->
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
