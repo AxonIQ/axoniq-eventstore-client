@@ -44,11 +44,6 @@ message ReadHighestSequenceNrResponse {
     int64 to_sequence_nr = 1;
 }
 
-service Cluster {
-    rpc Join(JoinRequest) returns (stream MasterInfo) {
-    }
-}
-
 message MasterInfo {
     string host_name = 1;
     int32 grpc_port = 2;
