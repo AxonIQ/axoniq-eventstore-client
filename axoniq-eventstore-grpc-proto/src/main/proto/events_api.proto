@@ -24,6 +24,24 @@ service EventReader {
     // Retrieves the Events from a given tracking token. Results are streamed rather than returned at once.
     rpc ListEvents (stream GetEventsRequest) returns (stream EventWithToken) {
     }
+
+    // Gets the highest sequence number for a specific aggregate.
+    rpc ReadHighestSequenceNr( ReadHighestSequenceNrRequest ) returns (ReadHighestSequenceNrResponse) {}
+}
+
+service Cluster {
+    rpc Join(JoinRequest) returns (stream MasterInfo) {
+    }
+}
+
+message ReadHighestSequenceNrRequest {
+    string aggregate_id = 1;
+    string context = 2;
+    int64 from_sequence_nr = 3;
+}
+
+message ReadHighestSequenceNrResponse {
+    int64 to_sequence_nr = 1;
 }
 
 service Cluster {
