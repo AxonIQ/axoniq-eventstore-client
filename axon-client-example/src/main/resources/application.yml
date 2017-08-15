@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: axon-fun
+
+  h2:
+    console:
+      enabled: true
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+
+  datasource:
+    url: jdbc:h2:~/bankdb
+#    url: jdbc:mysql://localhost:3306/axonquery
+#    username: axon
+#    password: axon
+
+axoniq:
+  eventstore:
+    servers: localhost:8125, localhost:8124, eventstore.axoniq.io:8123
+    token:  4e173955-f887-465a-a7d8-2fdbca7e4e37
+    connectionRetryCount: 10
+    flowControl:
+      initialNrOfPermits: 10000
+      nrOfNewPermits: 10000
+      newPermitsThreshold: 1000
+    ssl:
+      certChainFile: resources/axoniq-public.crt
+# default configuration
+#axoniq:
+#  eventstore:
+#    host: localhost
+#    port: 8123
+
+# Full authentication is required to access actuator endpoints since spring boot 1.5.1.RELEASE
+management:
+  security:
+    enabled: false
+server:
+  port: 8081
+
+logging:
+  level:
+    com.axoniq.eventstore: DEBUG
+
+
