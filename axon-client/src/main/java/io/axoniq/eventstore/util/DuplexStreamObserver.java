@@ -13,10 +13,12 @@ public class DuplexStreamObserver<Request,Response> {
     private final StartCommand<Request, Response> startCommand;
     private final OnNext<Request, Response> onNext;
     private final OnError onError;
+    private FlowControlledResponseStream responseStream;
 
     public void stop() {
         logger.info( "Observer stopped");
         requestStream.onCompleted();
+        responseStream.onCompleted();
     }
 
     public interface StartCommand<Request,Response> {
@@ -61,6 +63,7 @@ public class DuplexStreamObserver<Request,Response> {
 
         @Override
         public void onError(Throwable throwable) {
+            logger.error("Received error: {}", throwable.getMessage());
             onError.error(throwable);
         }
 
@@ -78,7 +81,7 @@ public class DuplexStreamObserver<Request,Response> {
 
 
     public void start( Request initialRequest, Request nextRequest, int initial, int next, int threshold) {
-        FlowControlledResponseStream responseStream = new FlowControlledResponseStream( nextRequest, initial, next, threshold);
+        responseStream = new FlowControlledResponseStream( nextRequest, initial, next, threshold);
         requestStream = startCommand.call(responseStream);
         requestStream.onNext(initialRequest);
     }

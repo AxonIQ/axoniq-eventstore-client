@@ -23,6 +23,7 @@ class EventConsumer implements TrackingEventStream {
     private BlockingQueue<TrackedEventMessage> events;
     private TrackedEventMessage<?> peekEvent;
     private Consumer<EventConsumer> closeCallback;
+    private boolean closed;
 
     public EventConsumer(PayloadMapper payloadMapper) {
         this.events = new LinkedBlockingQueue<>();
@@ -64,12 +65,12 @@ class EventConsumer implements TrackingEventStream {
     @Override
     public void close() {
         if( closeCallback != null) closeCallback.accept(this);
+        closed = true;
     }
 
 
     public void push(EventWithToken event) {
         try {
-            if( event.getToken() % 1000 == 0) logger.warn("token: {}", event.getToken());
             TrackingToken trackingToken = new GlobalSequenceTrackingToken(event.getToken());
             GenericTrackedDomainEventMessage trackedEventMessage = new GenericTrackedDomainEventMessage(trackingToken, payloadMapper.map(event.getEvent()));
             events.put(trackedEventMessage);
@@ -78,5 +79,9 @@ class EventConsumer implements TrackingEventStream {
         } catch (Exception e) {
             logger.info(e.getMessage());
         }
+    }
+
+    public boolean isClosed() {
+        return closed;
     }
 }

@@ -83,14 +83,16 @@ public class AxoniqEventStore extends AbstractEventBus implements EventStore {
                     receivedToken.set(eventWithToken.getToken());
                 },
                 throwable -> {
-                    logger.error("Failed to receive events", throwable);
-                    eventStoreConfiguration.stopChannelToEventStore();
-                    try {
-                        if(! eventStoreConfiguration.isShutdown() )
-                            restartStream(consumer, receivedToken.get() == -1 ? nextToken : receivedToken.get() + 1);
-                    } catch( Exception ex) {
-                        logger.error("Failed to restart stream: - {}", throwable.getMessage());
-                        consumer.close();
+                    if( ! consumer.isClosed()  ) {
+                        logger.error("Failed to receive events", throwable);
+                        eventStoreConfiguration.stopChannelToEventStore();
+                        try {
+                            if (!eventStoreConfiguration.isShutdown())
+                                restartStream(consumer, receivedToken.get() == -1 ? nextToken : receivedToken.get() + 1);
+                        } catch (Exception ex) {
+                            logger.error("Failed to restart stream: - {}", throwable.getMessage());
+                            consumer.close();
+                        }
                     }
                 });
 
