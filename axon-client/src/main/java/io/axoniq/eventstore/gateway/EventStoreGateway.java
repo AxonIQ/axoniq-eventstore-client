@@ -139,7 +139,7 @@ public class EventStoreGateway {
             @Override
             public void onCompleted() {
                 stream.complete(eventStream.build());
-                logger.info("Done request for {}: {}ms, {} events", request.getAggregateId(), System.currentTimeMillis() - before, count);
+                logger.debug("Done request for {}: {}ms, {} events", request.getAggregateId(), System.currentTimeMillis() - before, count);
             }
         });
         return stream.get();
