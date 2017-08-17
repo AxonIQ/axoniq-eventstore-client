@@ -1,8 +1,9 @@
 package io.axoniq.axonclient;
 
 import com.google.common.collect.Lists;
-import io.axoniq.eventstore.AxoniqEventStore;
+import io.axoniq.eventstore.axon.AxoniqEventStore;
 import io.axoniq.eventstore.EventStoreConfiguration;
+import io.axoniq.eventstore.gateway.EventStoreGateway;
 import io.axoniq.eventstore.performancetest.TestEvent;
 import org.axonframework.eventhandling.EventMessage;
 import org.axonframework.eventsourcing.GenericDomainEventMessage;
@@ -38,7 +39,9 @@ public class ClientNoSpring2 {
                 .build();
 
         Serializer serializer = new JacksonSerializer();
-        AxoniqEventStore eventStore = new AxoniqEventStore( eventStoreConfiguration, serializer);
+        EventStoreGateway gateway = new EventStoreGateway(eventStoreConfiguration);
+
+        AxoniqEventStore eventStore = new AxoniqEventStore( eventStoreConfiguration, gateway, serializer);
 
         IntStream.range(0, NR_AGGREGATES).forEach(i -> {
             aggregateIds[i] = UUID.randomUUID().toString();

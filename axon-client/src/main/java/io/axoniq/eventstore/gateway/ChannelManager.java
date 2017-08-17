@@ -1,4 +1,4 @@
-package io.axoniq.eventstore.util;
+package io.axoniq.eventstore.gateway;
 
 import io.axoniq.eventstore.grpc.MasterInfo;
 import io.grpc.ManagedChannel;

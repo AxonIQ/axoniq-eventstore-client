@@ -1,4 +1,4 @@
-package io.axoniq.eventstore;
+package io.axoniq.eventstore.gateway;
 
 import io.grpc.*;
 

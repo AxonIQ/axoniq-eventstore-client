@@ -1,8 +1,9 @@
 package com.example;
 
-import io.axoniq.eventstore.AxoniqEventStore;
+import io.axoniq.eventstore.axon.AxoniqEventStore;
 import io.axoniq.eventstore.EventStoreConfiguration;
 import com.example.command.BankAccountAggregate;
+import io.axoniq.eventstore.gateway.EventStoreGateway;
 import org.axonframework.commandhandling.model.Repository;
 import org.axonframework.common.caching.Cache;
 import org.axonframework.common.caching.WeakReferenceCache;
@@ -33,8 +34,13 @@ public class AxoniqConfiguration {
     }
 
     @Bean(name = "eventBus")
-    public EventStore eventStore(EventStoreConfiguration eventStoreConfiguration, Serializer serializer) {
-        return new AxoniqEventStore(eventStoreConfiguration, serializer);
+    public EventStore eventStore(EventStoreConfiguration eventStoreConfiguration, EventStoreGateway eventStoreGateway, Serializer serializer) {
+        return new AxoniqEventStore(eventStoreConfiguration, eventStoreGateway, serializer);
+    }
+
+    @Bean
+    public EventStoreGateway eventStoreGateway(EventStoreConfiguration eventStoreConfiguration)  {
+        return new EventStoreGateway(eventStoreConfiguration);
     }
 
     @Bean

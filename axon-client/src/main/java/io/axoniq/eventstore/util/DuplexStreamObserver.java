@@ -10,15 +10,28 @@ import org.slf4j.LoggerFactory;
 public class DuplexStreamObserver<Request,Response> {
     private Logger logger = LoggerFactory.getLogger(DuplexStreamObserver.class);
     private StreamObserver<Request> requestStream;
+
     private final StartCommand<Request, Response> startCommand;
+    private Request initialRequest;
+    private Request nextRequest;
+    private int permitsLeft;
+    private int next;
+    private int threshold;
+    private boolean flowControl;
+
+
     private final OnNext<Request, Response> onNext;
     private final OnError onError;
-    private FlowControlledResponseStream responseStream;
+    private boolean stopped;
 
     public void stop() {
         logger.info( "Observer stopped");
-        requestStream.onCompleted();
-        responseStream.onCompleted();
+        stopped = true;
+        try {
+            requestStream.onCompleted();
+        } catch( Exception ex) {
+
+        }
     }
 
     public interface StartCommand<Request,Response> {
@@ -35,20 +48,6 @@ public class DuplexStreamObserver<Request,Response> {
 
     private class FlowControlledResponseStream implements StreamObserver<Response> {
 
-        private final Request nextRequest;
-        private int permitsLeft;
-        private final int next;
-        private final int threshold;
-        private final boolean flowControl;
-
-        public FlowControlledResponseStream(Request nextRequest, int initial, int next, int threshold) {
-            this.nextRequest = nextRequest;
-            this.permitsLeft = initial;
-            this.next = next;
-            this.threshold = threshold;
-            flowControl = (nextRequest != null && initial > 0);
-        }
-
         @Override
         public void onNext(Response response) {
             onNext.next( response, requestStream);
@@ -64,7 +63,7 @@ public class DuplexStreamObserver<Request,Response> {
         @Override
         public void onError(Throwable throwable) {
             logger.error("Received error: {}", throwable.getMessage());
-            onError.error(throwable);
+            handleError(throwable);
         }
 
         @Override
@@ -81,9 +80,21 @@ public class DuplexStreamObserver<Request,Response> {
 
 
     public void start( Request initialRequest, Request nextRequest, int initial, int next, int threshold) {
-        responseStream = new FlowControlledResponseStream( nextRequest, initial, next, threshold);
-        requestStream = startCommand.call(responseStream);
+        this.initialRequest = initialRequest;
+        this.nextRequest = nextRequest;
+        this.permitsLeft = initial;
+        this.next = next;
+        this.threshold = threshold;
+        this.flowControl = (nextRequest != null && initial > 0);
+
+        requestStream = startCommand.call( new FlowControlledResponseStream());
         requestStream.onNext(initialRequest);
+    }
+
+    private void handleError(Throwable throwable) {
+        if( ! stopped) {
+            onError.error(throwable);
+        }
     }
 
 }

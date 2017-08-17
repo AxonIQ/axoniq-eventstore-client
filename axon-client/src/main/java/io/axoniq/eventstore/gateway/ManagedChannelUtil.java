@@ -1,4 +1,4 @@
-package io.axoniq.eventstore.util;
+package io.axoniq.eventstore.gateway;
 
 import io.grpc.ManagedChannel;
 import io.grpc.netty.GrpcSslContexts;

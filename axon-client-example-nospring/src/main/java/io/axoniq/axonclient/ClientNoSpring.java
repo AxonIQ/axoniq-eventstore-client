@@ -1,8 +1,8 @@
 package io.axoniq.axonclient;
 
-import io.axoniq.eventstore.AxoniqEventStore;
+import io.axoniq.eventstore.axon.AxoniqEventStore;
 import io.axoniq.eventstore.EventStoreConfiguration;
-import io.axoniq.eventstore.performancetest.TestEvent;
+import io.axoniq.eventstore.gateway.EventStoreGateway;
 import org.axonframework.eventhandling.TrackedEventMessage;
 import org.axonframework.eventsourcing.GenericTrackedDomainEventMessage;
 import org.axonframework.eventsourcing.eventstore.GlobalSequenceTrackingToken;
@@ -27,8 +27,9 @@ public class ClientNoSpring {
                 .ssl("resources/axoniq-public.crt")
                 .build();
 
+        EventStoreGateway gateway = new EventStoreGateway(eventStoreConfiguration);
         Serializer serializer = new JacksonSerializer();
-        AxoniqEventStore eventStore = new AxoniqEventStore( eventStoreConfiguration, serializer);
+        AxoniqEventStore eventStore = new AxoniqEventStore( eventStoreConfiguration, gateway, serializer);
         try {
             // TrackingEventStream stream = eventStore.openStream(null);
             TrackingEventStream stream = eventStore.openStream(new GlobalSequenceTrackingToken(10000000));

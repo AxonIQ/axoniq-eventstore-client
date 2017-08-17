@@ -1,6 +1,8 @@
-package io.axoniq.eventstore;
+package io.axoniq.eventstore.axon;
 
 import com.google.protobuf.ByteString;
+import io.axoniq.eventstore.Event;
+import io.axoniq.eventstore.Payload;
 import io.axoniq.eventstore.grpc.EventWithContext;
 import org.axonframework.eventhandling.EventMessage;
 import org.axonframework.eventsourcing.GenericDomainEventMessage;

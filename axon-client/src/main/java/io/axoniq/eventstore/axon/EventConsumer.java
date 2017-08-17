@@ -1,5 +1,6 @@
-package io.axoniq.eventstore;
+package io.axoniq.eventstore.axon;
 
+import io.axoniq.eventstore.EventWithToken;
 import org.axonframework.eventhandling.TrackedEventMessage;
 import org.axonframework.eventsourcing.GenericTrackedDomainEventMessage;
 import org.axonframework.eventsourcing.eventstore.GlobalSequenceTrackingToken;
@@ -12,6 +13,7 @@ import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
@@ -23,7 +25,7 @@ class EventConsumer implements TrackingEventStream {
     private BlockingQueue<TrackedEventMessage> events;
     private TrackedEventMessage<?> peekEvent;
     private Consumer<EventConsumer> closeCallback;
-    private boolean closed;
+    private RuntimeException exception;
 
     public EventConsumer(PayloadMapper payloadMapper) {
         this.events = new LinkedBlockingQueue<>();
@@ -40,6 +42,7 @@ class EventConsumer implements TrackingEventStream {
 
     @Override
     public boolean hasNextAvailable(int timeout, TimeUnit timeUnit) throws InterruptedException {
+        if( exception != null) throw exception;
         try {
             return peekEvent != null || (peekEvent = events.poll(timeout, timeUnit)) != null;
         } catch (InterruptedException e) {
@@ -51,6 +54,7 @@ class EventConsumer implements TrackingEventStream {
 
     @Override
     public TrackedEventMessage<?> nextAvailable() throws InterruptedException {
+        if( exception != null) throw exception;
         try {
             return peekEvent == null ? events.take() : peekEvent;
         } catch (InterruptedException e) {
@@ -65,7 +69,6 @@ class EventConsumer implements TrackingEventStream {
     @Override
     public void close() {
         if( closeCallback != null) closeCallback.accept(this);
-        closed = true;
     }
 
 
@@ -81,7 +84,7 @@ class EventConsumer implements TrackingEventStream {
         }
     }
 
-    public boolean isClosed() {
-        return closed;
+    public void fail(RuntimeException e) {
+        this.exception  = e;
     }
 }

@@ -1,10 +1,12 @@
 package io.axoniq.eventstore;
 
+import io.axoniq.eventstore.axon.AxoniqEventStore;
+import io.axoniq.eventstore.gateway.TokenAddingInterceptor;
 import io.axoniq.eventstore.grpc.ClusterGrpc;
 import io.axoniq.eventstore.grpc.JoinRequest;
 import io.axoniq.eventstore.grpc.MasterInfo;
 import io.axoniq.eventstore.util.Broadcaster;
-import io.axoniq.eventstore.util.ChannelManager;
+import io.axoniq.eventstore.gateway.ChannelManager;
 import io.grpc.Channel;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
@@ -25,13 +27,10 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 @Component
 public class EventStoreConfiguration {
-    private static final Logger logger = LoggerFactory.getLogger(AxoniqEventStore.class);
-    private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
     @Value("${axoniq.eventstore.servers:#{null}}")
     private String servers;
     private List<MasterInfo> serverNodes = new ArrayList<>();
-    private final AtomicReference<MasterInfo> eventStoreServer = new AtomicReference<>();
-    private ChannelManager channelManager;
+
 
     @Value("${axoniq.eventstore.flowControl.initialNrOfPermits:10000}")
     private Integer initialNrOfPermits;
@@ -48,7 +47,6 @@ public class EventStoreConfiguration {
     @Value("${axoniq.eventstore.connectionRetryCount:5}")
     private int connectionRetryCount;
 
-    private boolean shutdown;
 
     public  EventStoreConfiguration() {
     }
@@ -65,14 +63,18 @@ public class EventStoreConfiguration {
                 serverNodes.add(nodeInfo);
             });
         }
-
-        channelManager = new ChannelManager(certFile);
     }
 
-    @PreDestroy
-    public void cleanup() {
-        shutdown = true;
-        channelManager.cleanup();
+    public List<MasterInfo> getServerNodes() {
+        return serverNodes;
+    }
+
+    public long getConnectionRetry() {
+        return connectionRetry;
+    }
+
+    public int getConnectionRetryCount() {
+        return connectionRetryCount;
     }
 
     public String getToken() {
@@ -91,68 +93,12 @@ public class EventStoreConfiguration {
         return newPermitsThreshold;
     }
 
-    private MasterInfo discoverEventStore() {
-        eventStoreServer.set(null);
-        Broadcaster<MasterInfo> b = new Broadcaster<>(serverNodes, this::join, this::nodeReceived);
-        b.broadcast(TimeUnit.SECONDS, 1);
-        return eventStoreServer.get();
-    }
-
-    private void nodeReceived(MasterInfo node) {
-        logger.info("Received: {}:{}", node.getHostName(), node.getGrpcPort());
-        eventStoreServer.set(node);
-    }
-
-    private void join(MasterInfo nodeInfo, StreamObserver<MasterInfo> streamObserver) {
-        Channel channel = channelManager.getChannel(nodeInfo);
-        ClusterGrpc.ClusterStub clusterManagerStub = ClusterGrpc.newStub(channel).withInterceptors(new TokenAddingInterceptor(token));
-        clusterManagerStub.join(JoinRequest.newBuilder().build(), streamObserver);
-    }
-
-    public Channel getChannelToEventStore() {
-        if( shutdown) return null;
-        CompletableFuture<MasterInfo> masterInfoCompletableFuture = new CompletableFuture<>();
-        getEventStoreAsync(connectionRetryCount, masterInfoCompletableFuture);
-        try {
-            return channelManager.getChannel(masterInfoCompletableFuture.get());
-        } catch (InterruptedException | ExecutionException  e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void getEventStoreAsync(int retries, CompletableFuture<MasterInfo> result) {
-        MasterInfo currentEventStore = eventStoreServer.get();
-        if( currentEventStore != null) {
-            result.complete(currentEventStore);
-        } else  {
-            currentEventStore = discoverEventStore();
-            if( currentEventStore != null) {
-                result.complete(currentEventStore);
-            } else {
-                if( retries > 0)
-                    executorService.schedule( () -> getEventStoreAsync( retries-1, result), connectionRetry, TimeUnit.MILLISECONDS);
-                else
-                    result.completeExceptionally(new RuntimeException("No available event store server"));
-            }
-        }
-    }
-
-    public void stopChannelToEventStore() {
-        eventStoreServer.getAndUpdate(current -> {
-            if( current != null) {
-                logger.info("Shutting down gRPC channel");
-                channelManager.shutdown(current);
-            }
-            return null;
-        }) ;
+    public String getCertFile() {
+        return certFile;
     }
 
     public static Builder newBuilder(String servers) {
         return new Builder(servers);
-    }
-
-    public boolean isShutdown() {
-        return shutdown;
     }
 
     public static class Builder {

@@ -1,6 +1,7 @@
 package io.axoniq.eventstore;
 
 import com.google.protobuf.ByteString;
+import io.axoniq.eventstore.axon.PayloadMapper;
 import io.axoniq.eventstore.grpc.EventWithContext;
 import org.axonframework.eventsourcing.GenericDomainEventMessage;
 import org.axonframework.serialization.SerializedObject;
