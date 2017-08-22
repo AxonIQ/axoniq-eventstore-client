@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.axoniq</groupId>
+    <artifactId>axoniq-client</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+
+    <packaging>pom</packaging>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <java.version>1.8</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+
+        <grpc.version>1.4.0</grpc.version>
+        <axon.version>3.0.6</axon.version>
+        <swagger.version>2.7.0</swagger.version>
+        <slf4j.version>1.7.25</slf4j.version>
+        <jackson.version>2.9.0</jackson.version>
+    </properties>
+
+    <modules>
+        <module>axoniq-eventstore-grpc-proto</module>
+        <module>axoniq-eventstore-client</module>
+        <module>axoniq-eventstore-client-example</module>
+        <module>axoniq-eventstore-client-example-nospring</module>
+        <module>akka-java-client-example</module>
+    </modules>
+
+</project>
