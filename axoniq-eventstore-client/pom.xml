@@ -56,10 +56,10 @@
                     <groupId>com.google.errorprone</groupId>
                     <artifactId>error_prone_annotations</artifactId>
                 </exclusion>
-                <exclusion>
+                <!--exclusion>
                     <groupId>com.google.instrumentation</groupId>
                     <artifactId>instrumentation-api</artifactId>
-                </exclusion>
+                </exclusion-->
             </exclusions>
         </dependency>
         <dependency>
@@ -78,7 +78,6 @@
             <version>2.0.5.Final</version>
             <classifier>${os.detected.classifier}</classifier>
         </dependency>
-
         <!-- logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
