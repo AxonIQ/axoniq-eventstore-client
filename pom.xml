@@ -27,9 +27,9 @@
     <modules>
         <module>axoniq-eventstore-grpc-proto</module>
         <module>axoniq-eventstore-client</module>
-        <module>axoniq-eventstore-client-example</module>
-        <module>axoniq-eventstore-client-example-nospring</module>
-        <module>akka-java-client-example</module>
+        <module>examples/axoniq-eventstore-client-example</module>
+        <module>examples/axoniq-eventstore-client-example-nospring</module>
+        <module>examples/akka-java-client-example</module>
     </modules>
 
 </project>

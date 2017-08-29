@@ -1,8 +1,8 @@
 package io.axoniq.eventstore.axon;
 
-import io.axoniq.eventstore.EventWithToken;
+import io.axoniq.eventstore.grpc.EventWithToken;
+import org.axonframework.eventhandling.GenericTrackedEventMessage;
 import org.axonframework.eventhandling.TrackedEventMessage;
-import org.axonframework.eventsourcing.GenericTrackedDomainEventMessage;
 import org.axonframework.eventsourcing.eventstore.GlobalSequenceTrackingToken;
 import org.axonframework.eventsourcing.eventstore.TrackingEventStream;
 import org.axonframework.eventsourcing.eventstore.TrackingToken;
@@ -13,16 +13,16 @@ import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
  * Created by marc on 7/18/2017.
  */
-class EventConsumer implements TrackingEventStream {
+public class EventConsumer implements TrackingEventStream {
     final Logger logger = LoggerFactory.getLogger(EventConsumer.class);
     final private PayloadMapper payloadMapper;
-    private BlockingQueue<TrackedEventMessage> events;
+
+    private final BlockingQueue<TrackedEventMessage> events;
     private TrackedEventMessage<?> peekEvent;
     private Consumer<EventConsumer> closeCallback;
     private RuntimeException exception;
@@ -75,8 +75,7 @@ class EventConsumer implements TrackingEventStream {
     public void push(EventWithToken event) {
         try {
             TrackingToken trackingToken = new GlobalSequenceTrackingToken(event.getToken());
-            GenericTrackedDomainEventMessage trackedEventMessage = new GenericTrackedDomainEventMessage(trackingToken, payloadMapper.map(event.getEvent()));
-            events.put(trackedEventMessage);
+            events.put(new GenericTrackedEventMessage<>(trackingToken, payloadMapper.map(event.getEvent())));
         } catch (InterruptedException e) {
             e.printStackTrace();
         } catch (Exception e) {

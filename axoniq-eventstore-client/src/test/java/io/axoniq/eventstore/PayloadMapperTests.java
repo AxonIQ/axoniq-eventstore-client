@@ -1,8 +1,11 @@
 package io.axoniq.eventstore;
 
 import com.google.protobuf.ByteString;
+import io.axoniq.eventstore.axon.DefaultPayloadMapper;
 import io.axoniq.eventstore.axon.PayloadMapper;
 import io.axoniq.eventstore.grpc.EventWithContext;
+import org.axonframework.eventhandling.EventMessage;
+import org.axonframework.eventsourcing.DomainEventMessage;
 import org.axonframework.eventsourcing.GenericDomainEventMessage;
 import org.axonframework.serialization.SerializedObject;
 import org.axonframework.serialization.Serializer;
@@ -12,6 +15,7 @@ import org.junit.Test;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Zoltan Altfatter
@@ -25,7 +29,7 @@ public class PayloadMapperTests {
     @Before
     public void setUp() {
         serializer = new JacksonSerializer();
-        payloadMapper = new PayloadMapper(serializer);
+        payloadMapper = new DefaultPayloadMapper(serializer);
     }
 
     @Test
@@ -52,17 +56,34 @@ public class PayloadMapperTests {
         Event event = Event.newBuilder()
                 .setAggregateIdentifier("04b5b7f5-ff2b-4a8d-9fe1-103dce4450a3")
                 .setAggregateSequenceNumber(0)
-                .setPayload(Payload.newBuilder()
+                .setPayload(io.axoniq.eventstore.SerializedObject.newBuilder()
                         .setType("io.axoniq.eventstore.PayloadMapperTests$ExamplePayload")
                         .setData(ByteString.copyFromUtf8("{\"value\":\"foo\"}")))
                 .build();
 
-        GenericDomainEventMessage<?> message = payloadMapper.map(event);
+        EventMessage<?> message = payloadMapper.map(event);
+        assertTrue(message instanceof DomainEventMessage<?>);
+        DomainEventMessage<?> domainEvent = (DomainEventMessage<?>) message;
+        assertThat(domainEvent.getAggregateIdentifier(), is("04b5b7f5-ff2b-4a8d-9fe1-103dce4450a3"));
+        assertThat(domainEvent.getSequenceNumber(), is(0L));
+        assertThat(domainEvent.getType(), is("io.axoniq.eventstore.PayloadMapperTests$ExamplePayload"));
+    }
+
+    @Test
+    public void mapDomainEvent() {
+        Event event = Event.newBuilder()
+                .setAggregateIdentifier("04b5b7f5-ff2b-4a8d-9fe1-103dce4450a3")
+                .setAggregateSequenceNumber(0)
+                .setPayload(io.axoniq.eventstore.SerializedObject.newBuilder()
+                        .setType("io.axoniq.eventstore.PayloadMapperTests$ExamplePayload")
+                        .setData(ByteString.copyFromUtf8("{\"value\":\"foo\"}")))
+                .build();
+
+        DomainEventMessage<?> message = payloadMapper.mapDomainEvent(event);
 
         assertThat(message.getAggregateIdentifier(), is("04b5b7f5-ff2b-4a8d-9fe1-103dce4450a3"));
         assertThat(message.getSequenceNumber(), is(0L));
         assertThat(message.getType(), is("io.axoniq.eventstore.PayloadMapperTests$ExamplePayload"));
-
     }
 
     static class ExamplePayload {

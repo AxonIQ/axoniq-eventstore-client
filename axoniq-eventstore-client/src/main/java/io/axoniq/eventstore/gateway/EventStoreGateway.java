@@ -2,21 +2,16 @@ package io.axoniq.eventstore.gateway;
 
 import io.axoniq.eventstore.Event;
 import io.axoniq.eventstore.EventStoreConfiguration;
-import io.axoniq.eventstore.EventWithToken;
-import io.axoniq.eventstore.axon.AxoniqEventStore;
+import io.axoniq.eventstore.grpc.EventWithToken;
 import io.axoniq.eventstore.grpc.*;
 import io.axoniq.eventstore.util.Broadcaster;
-import io.axoniq.eventstore.util.GrpcConnection;
 import io.grpc.Channel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
@@ -24,7 +19,6 @@ import java.util.stream.Stream;
 /**
  * Author: marc
  */
-@Component
 public class EventStoreGateway {
     private final Logger logger = LoggerFactory.getLogger(EventStoreGateway.class);
 
@@ -32,66 +26,56 @@ public class EventStoreGateway {
     private final EventStoreConfiguration eventStoreConfiguration;
     private final TokenAddingInterceptor tokenAddingInterceptor;
 
-    private final AtomicReference<MasterInfo> eventStoreServer = new AtomicReference<>();
-    private ChannelManager channelManager;
+    private final AtomicReference<ClusterInfo> eventStoreServer = new AtomicReference<>();
+    private final ChannelManager channelManager;
     private boolean shutdown;
 
     public EventStoreGateway(EventStoreConfiguration eventStoreConfiguration ) {
         this.eventStoreConfiguration = eventStoreConfiguration;
         this.tokenAddingInterceptor = new TokenAddingInterceptor(eventStoreConfiguration.getToken());
+        this.channelManager = new ChannelManager(eventStoreConfiguration.getCertFile());
     }
 
-    @PostConstruct
-    public void init(){
-        channelManager = new ChannelManager(eventStoreConfiguration.getCertFile());
-    }
-
-    @PreDestroy
-    public void cleanup() {
+    public void shutdown() {
         shutdown = true;
         channelManager.cleanup();
     }
 
-
-    private EventWriterGrpc.EventWriterStub eventWriterStub() {
-        return EventWriterGrpc.newStub(getChannelToEventStore()).withInterceptors(tokenAddingInterceptor);
+    private EventStoreGrpc.EventStoreStub eventStoreStub() {
+        return EventStoreGrpc.newStub(getChannelToEventStore()).withInterceptors(tokenAddingInterceptor);
     }
 
-    private EventReaderGrpc.EventReaderStub eventReaderStub() {
-        return EventReaderGrpc.newStub(getChannelToEventStore()).withInterceptors(tokenAddingInterceptor);
-    }
-
-    private MasterInfo discoverEventStore() {
+    private ClusterInfo discoverEventStore() {
         eventStoreServer.set(null);
-        Broadcaster<MasterInfo> b = new Broadcaster<>(eventStoreConfiguration.getServerNodes(), this::join, this::nodeReceived);
+        Broadcaster<ClusterInfo> b = new Broadcaster<>(eventStoreConfiguration.getServerNodes(), this::retrieveClusterInfo, this::nodeReceived);
         b.broadcast(TimeUnit.SECONDS, 1);
         return eventStoreServer.get();
     }
 
-    private void nodeReceived(MasterInfo node) {
-        logger.info("Received: {}:{}", node.getHostName(), node.getGrpcPort());
+    private void nodeReceived(ClusterInfo node) {
+        logger.info("Received: {}:{}", node.getMaster().getHostName(), node.getMaster().getGrpcPort());
         eventStoreServer.set(node);
     }
 
-    private void join(MasterInfo nodeInfo, StreamObserver<MasterInfo> streamObserver) {
+    private void retrieveClusterInfo(NodeInfo nodeInfo, StreamObserver<ClusterInfo> streamObserver) {
         Channel channel = channelManager.getChannel(nodeInfo);
         ClusterGrpc.ClusterStub clusterManagerStub = ClusterGrpc.newStub(channel).withInterceptors(new TokenAddingInterceptor(eventStoreConfiguration.getToken()));
-        clusterManagerStub.join(JoinRequest.newBuilder().build(), streamObserver);
+        clusterManagerStub.retrieveClusterInfo(RetrieveClusterInfoRequest.newBuilder().build(), streamObserver);
     }
 
     private Channel getChannelToEventStore() {
         if( shutdown) return null;
-        CompletableFuture<MasterInfo> masterInfoCompletableFuture = new CompletableFuture<>();
+        CompletableFuture<ClusterInfo> masterInfoCompletableFuture = new CompletableFuture<>();
         getEventStoreAsync(eventStoreConfiguration.getConnectionRetryCount(), masterInfoCompletableFuture);
         try {
-            return channelManager.getChannel(masterInfoCompletableFuture.get());
+            return channelManager.getChannel(masterInfoCompletableFuture.get().getMaster());
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void getEventStoreAsync(int retries, CompletableFuture<MasterInfo> result) {
-        MasterInfo currentEventStore = eventStoreServer.get();
+    private void getEventStoreAsync(int retries, CompletableFuture<ClusterInfo> result) {
+        ClusterInfo currentEventStore = eventStoreServer.get();
         if( currentEventStore != null) {
             result.complete(currentEventStore);
         } else  {
@@ -121,7 +105,7 @@ public class EventStoreGateway {
     public Stream<Event> listAggregateEvents(GetAggregateEventsRequest request) throws ExecutionException, InterruptedException {
         CompletableFuture<Stream<Event>> stream  = new CompletableFuture<>();
         long before = System.currentTimeMillis();
-        eventReaderStub().listAggregateEvents(request, new StreamObserver<Event>() {
+        eventStoreStub().listAggregateEvents(request, new StreamObserver<Event>() {
             Stream.Builder<Event> eventStream = Stream.builder();
             int count;
             @Override
@@ -164,13 +148,13 @@ public class EventStoreGateway {
 
             }
         };
-        return eventReaderStub().listEvents(wrappedStreamObserver);
+        return eventStoreStub().listEvents(wrappedStreamObserver);
     }
 
     public CompletableFuture<Confirmation> appendSnapshot(EventWithContext snapshot) {
 
         CompletableFuture<Confirmation> confirmationFuture = new CompletableFuture<>();
-        eventWriterStub().appendSnapshot(snapshot, new StreamObserver<Confirmation>() {
+        eventStoreStub().appendSnapshot(snapshot, new StreamObserver<Confirmation>() {
             @Override
             public void onNext(Confirmation confirmation) {
                 confirmationFuture.complete(confirmation);
@@ -191,9 +175,9 @@ public class EventStoreGateway {
         return confirmationFuture;
     }
 
-    public GrpcConnection createAppendEventConnection() {
+    public AppendEventTransaction createAppendEventConnection() {
         CompletableFuture<Confirmation> futureConfirmation = new CompletableFuture<>();
-        return new GrpcConnection(eventWriterStub().appendEvent(new StreamObserver<Confirmation>() {
+        return new AppendEventTransaction(eventStoreStub().appendEvent(new StreamObserver<Confirmation>() {
             @Override
             public void onNext(Confirmation confirmation) {
                 futureConfirmation.complete(confirmation);

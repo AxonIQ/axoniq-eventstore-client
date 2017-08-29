@@ -18,6 +18,7 @@
             <groupId>io.axoniq</groupId>
             <artifactId>axoniq-eventstore-grpc-proto</artifactId>
             <version>${project.version}</version>
+            <optional>true</optional>
         </dependency>
 
         <!-- OPTIONAL dependency on Spring -->
@@ -39,6 +40,7 @@
             <groupId>org.axonframework</groupId>
             <artifactId>axon-core</artifactId>
             <version>${axon.version}</version>
+            <optional>true</optional>
         </dependency>
 
         <!-- gRPC -->
@@ -56,10 +58,6 @@
                     <groupId>com.google.errorprone</groupId>
                     <artifactId>error_prone_annotations</artifactId>
                 </exclusion>
-                <!--exclusion>
-                    <groupId>com.google.instrumentation</groupId>
-                    <artifactId>instrumentation-api</artifactId>
-                </exclusion-->
             </exclusions>
         </dependency>
         <dependency>
@@ -72,12 +70,15 @@
             <artifactId>grpc-netty</artifactId>
             <version>${grpc.version}</version>
         </dependency>
+<!--
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-tcnative-boringssl-static</artifactId>
             <version>2.0.5.Final</version>
             <classifier>${os.detected.classifier}</classifier>
+            <scope>test</scope>
         </dependency>
+-->
         <!-- logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -171,14 +172,14 @@
                     <shadedArtifactAttached>true</shadedArtifactAttached>
                     <shadedClassifierName>complete</shadedClassifierName>
                     <artifactSet>
-                        <excludes>
-                            <exclude>org.springframework:*</exclude>
-                            <exclude>org.axonframework:*</exclude>
-                            <exclude>com.thoughtworks.xstream:xstream</exclude>
-                            <exclude>xpp3:xpp3</exclude>
-                            <exclude>ch.qos.logback:*</exclude>
-                        </excludes>
+                        <includes>
+                            <include>io.grpc:*</include>
+                            <include>com.google.*:*</include>
+                            <include>com.google:*</include>
+                            <include>io.netty:*</include>
+                        </includes>
                     </artifactSet>
+                    <minimizeJar>true</minimizeJar>
                     <relocations>
                         <relocation>
                             <pattern>io.grpc</pattern>

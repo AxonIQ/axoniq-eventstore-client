@@ -1,6 +1,6 @@
 package io.axoniq.eventstore.util;
 
-import io.axoniq.eventstore.grpc.MasterInfo;
+import io.axoniq.eventstore.grpc.NodeInfo;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,15 +16,15 @@ import java.util.function.Consumer;
  */
 public class Broadcaster<T> {
     private static final Logger logger = LoggerFactory.getLogger(Broadcaster.class);
-    private final Collection<MasterInfo> destinations;
+    private final Collection<NodeInfo> destinations;
     private final Action<T> action;
     private final Consumer<T> onNextCallback;
 
     public interface Action<T> {
-        void perform(MasterInfo request, StreamObserver<T> observer);
+        void perform(NodeInfo request, StreamObserver<T> observer);
     }
 
-    public Broadcaster(Collection<MasterInfo> destinations, Action<T> action, Consumer<T> onNextCallback) {
+    public Broadcaster(Collection<NodeInfo> destinations, Action<T> action, Consumer<T> onNextCallback) {
 
         this.destinations = destinations;
         this.action = action;

@@ -1,0 +1,85 @@
+syntax = "proto3";
+package io.axoniq.eventstore.grpc;
+import "messages.proto";
+option java_multiple_files = true;
+
+
+service EventStore {
+
+    // Accepts a stream of Events returning a Confirmation when completed.
+    rpc AppendEvent ( stream EventWithContext) returns (Confirmation) {
+    }
+
+    // Accepts a Snapshot event returning a Confirmation when completed.
+    rpc AppendSnapshot ( EventWithContext) returns (Confirmation) {
+    }
+
+    // Retrieves the Eevents for a given aggregate. Results are streamed rather than returned at once.
+    rpc ListAggregateEvents (GetAggregateEventsRequest) returns (stream Event) {
+    }
+
+    // Retrieves the Events from a given tracking token. Results are streamed rather than returned at once.
+    rpc ListEvents (stream GetEventsRequest) returns (stream EventWithToken) {
+    }
+
+    // Gets the highest sequence number for a specific aggregate.
+    rpc ReadHighestSequenceNr( ReadHighestSequenceNrRequest ) returns (ReadHighestSequenceNrResponse) {}
+}
+
+service Cluster {
+
+    rpc RetrieveClusterInfo(RetrieveClusterInfoRequest) returns (ClusterInfo) {
+    }
+}
+
+message EventWithToken {
+    int64 token = 1;
+    Event event = 2;
+}
+
+message ReadHighestSequenceNrRequest {
+    string aggregate_id = 1;
+    string context = 2;
+    int64 from_sequence_nr = 3;
+}
+
+message ReadHighestSequenceNrResponse {
+    int64 to_sequence_nr = 1;
+}
+
+message ClusterInfo {
+
+    NodeInfo master = 1;
+
+}
+
+message NodeInfo {
+    string host_name = 1;
+    int32 grpc_port = 2;
+    int32 http_port = 3;
+    int32 version = 4;
+}
+
+message RetrieveClusterInfoRequest {
+
+}
+
+message Confirmation {
+    bool success = 1;
+}
+
+message GetAggregateEventsRequest {
+    string aggregate_id = 1;
+    string context = 2;
+}
+
+message GetEventsRequest {
+    int64 tracking_token = 1;
+    int64 number_of_permits = 2;
+    string context = 3;
+}
+
+message EventWithContext {
+    Event event = 1;
+    string context = 2;
+}

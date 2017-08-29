@@ -1,6 +1,7 @@
 package io.axoniq.eventstore.gateway;
 
-import io.axoniq.eventstore.grpc.MasterInfo;
+import io.axoniq.eventstore.grpc.ClusterInfo;
+import io.axoniq.eventstore.grpc.NodeInfo;
 import io.grpc.ManagedChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,9 +22,9 @@ public class ChannelManager {
         this.certChainFile = certChainFile;
     }
 
-    public ManagedChannel getChannel(MasterInfo nodeInfo) {
+    public ManagedChannel getChannel(NodeInfo nodeInfo) {
         NodeKey nodeKey = new NodeKey(nodeInfo);
-        ManagedChannel channel = cluserManagerChannels.computeIfAbsent(new NodeKey(nodeInfo),
+        ManagedChannel channel = cluserManagerChannels.computeIfAbsent(nodeKey,
                 key -> ManagedChannelUtil.createManagedChannel(nodeInfo.getHostName(), nodeInfo.getGrpcPort(), certChainFile));
         if(channel.isShutdown() || channel.isTerminated()) {
             log.debug("Connection to {} lost, reconnecting", nodeInfo.getGrpcPort());
@@ -38,8 +39,8 @@ public class ChannelManager {
         cluserManagerChannels.values().forEach(ManagedChannel::shutdownNow);
     }
 
-    public void shutdown(MasterInfo nodeInfo) {
-        NodeKey nodeKey = new NodeKey(nodeInfo);
+    public void shutdown(ClusterInfo nodeInfo) {
+        NodeKey nodeKey = new NodeKey(nodeInfo.getMaster());
         ManagedChannel channel = cluserManagerChannels.remove(nodeKey);
         if( channel != null) {
             channel.shutdown();
@@ -50,7 +51,7 @@ public class ChannelManager {
         private final String hostName;
         private final int grpcPort;
 
-        NodeKey(MasterInfo nodeInfo) {
+        NodeKey(NodeInfo nodeInfo) {
             this.hostName = nodeInfo.getHostName();
             this.grpcPort = nodeInfo.getGrpcPort();
         }
