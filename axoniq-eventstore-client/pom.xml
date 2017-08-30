@@ -70,15 +70,17 @@
             <artifactId>grpc-netty</artifactId>
             <version>${grpc.version}</version>
         </dependency>
-<!--
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-handler</artifactId>
+            <version>${netty.version}</version>
+        </dependency>
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-tcnative-boringssl-static</artifactId>
-            <version>2.0.5.Final</version>
-            <classifier>${os.detected.classifier}</classifier>
-            <scope>test</scope>
+            <version>${netty.tcnative.version}</version>
         </dependency>
--->
+
         <!-- logging -->
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -170,7 +172,6 @@
                 <version>3.0.0</version>
                 <configuration>
                     <shadedArtifactAttached>true</shadedArtifactAttached>
-                    <shadedClassifierName>complete</shadedClassifierName>
                     <artifactSet>
                         <includes>
                             <include>io.grpc:*</include>
@@ -197,6 +198,25 @@
                 </configuration>
                 <executions>
                     <execution>
+                        <id>package-complete</id>
+                        <configuration>
+                            <shadedClassifierName>complete</shadedClassifierName>
+                        </configuration>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>package-nossl</id>
+                        <configuration>
+                            <shadedClassifierName>nossl</shadedClassifierName>
+                            <artifactSet>
+                                <excludes>
+                                    <exclude>io.netty:netty-tcnative-boringssl-static:*</exclude>
+                                </excludes>
+                            </artifactSet>
+                        </configuration>
                         <phase>package</phase>
                         <goals>
                             <goal>shade</goal>

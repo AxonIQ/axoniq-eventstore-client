@@ -21,7 +21,7 @@ public class ManagedChannelUtil {
                         .build();
                 builder.sslContext(sslContext);
             } catch (SSLException e) {
-                e.printStackTrace();
+                throw new RuntimeException("Couldn't set up SSL context", e);
             }
         } else {
             builder.usePlaintext(true);
