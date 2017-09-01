@@ -1,4 +1,4 @@
-package io.axoniq.eventstore.gateway;
+package io.axoniq.eventstore.client;
 
 import io.axoniq.eventstore.grpc.ClusterInfo;
 import io.axoniq.eventstore.grpc.NodeInfo;
@@ -16,7 +16,7 @@ public class ChannelManager {
     private final Logger log = LoggerFactory.getLogger(ChannelManager.class);
     private final String certChainFile;
 
-    private Map<NodeKey, ManagedChannel> cluserManagerChannels = new ConcurrentHashMap<>();
+    private Map<NodeKey, ManagedChannel> clusterManagerChannels = new ConcurrentHashMap<>();
 
     public ChannelManager(String certChainFile) {
         this.certChainFile = certChainFile;
@@ -24,11 +24,11 @@ public class ChannelManager {
 
     public ManagedChannel getChannel(NodeInfo nodeInfo) {
         NodeKey nodeKey = new NodeKey(nodeInfo);
-        ManagedChannel channel = cluserManagerChannels.computeIfAbsent(nodeKey,
+        ManagedChannel channel = clusterManagerChannels.computeIfAbsent(nodeKey,
                 key -> ManagedChannelUtil.createManagedChannel(nodeInfo.getHostName(), nodeInfo.getGrpcPort(), certChainFile));
         if(channel.isShutdown() || channel.isTerminated()) {
             log.debug("Connection to {} lost, reconnecting", nodeInfo.getGrpcPort());
-            cluserManagerChannels.remove(nodeKey);
+            clusterManagerChannels.remove(nodeKey);
             return getChannel(nodeInfo);
         }
         log.debug("Got channel for connection to {}:{}, channel = {}", nodeInfo.getHostName(), nodeInfo.getGrpcPort(), channel);
@@ -36,12 +36,12 @@ public class ChannelManager {
     }
 
     public void cleanup() {
-        cluserManagerChannels.values().forEach(ManagedChannel::shutdownNow);
+        clusterManagerChannels.values().forEach(ManagedChannel::shutdownNow);
     }
 
     public void shutdown(ClusterInfo nodeInfo) {
         NodeKey nodeKey = new NodeKey(nodeInfo.getMaster());
-        ManagedChannel channel = cluserManagerChannels.remove(nodeKey);
+        ManagedChannel channel = clusterManagerChannels.remove(nodeKey);
         if( channel != null) {
             channel.shutdown();
         }

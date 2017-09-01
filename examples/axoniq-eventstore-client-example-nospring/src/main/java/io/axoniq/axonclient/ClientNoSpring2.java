@@ -1,7 +1,7 @@
 package io.axoniq.axonclient;
 
-import io.axoniq.eventstore.EventStoreConfiguration;
-import io.axoniq.eventstore.axon.AxoniqEventStoreClient;
+import io.axoniq.eventstore.client.EventStoreConfiguration;
+import io.axoniq.eventstore.client.axon.AxonIQEventStore;
 import io.axoniq.eventstore.performancetest.TestEvent;
 import org.axonframework.eventsourcing.GenericDomainEventMessage;
 import org.axonframework.messaging.unitofwork.DefaultUnitOfWork;
@@ -35,7 +35,7 @@ public class ClientNoSpring2 {
                                                                                  .build();
 
         Serializer serializer = new JacksonSerializer();
-        AxoniqEventStoreClient eventStore = new AxoniqEventStoreClient(eventStoreConfiguration, serializer);
+        AxonIQEventStore eventStore = new AxonIQEventStore(eventStoreConfiguration, serializer);
 
         IntStream.range(0, NR_AGGREGATES).forEach(i -> {
             aggregateIds[i] = UUID.randomUUID().toString();
@@ -50,7 +50,7 @@ public class ClientNoSpring2 {
         System.out.println("Submitted " + NR_EVENTS + " events in " + (end - start) + "ms.");
     }
 
-    private static void generateMessages(AxoniqEventStoreClient eventStore) {
+    private static void generateMessages(AxonIQEventStore eventStore) {
         int i = ThreadLocalRandom.current().nextInt(0, NR_AGGREGATES);
         String aggId = aggregateIds[i];
         AtomicInteger seqHolder = sequenceNumbers.get(aggId);

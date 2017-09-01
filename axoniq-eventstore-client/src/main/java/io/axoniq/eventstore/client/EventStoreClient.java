@@ -1,10 +1,8 @@
-package io.axoniq.eventstore.gateway;
+package io.axoniq.eventstore.client;
 
 import io.axoniq.eventstore.Event;
-import io.axoniq.eventstore.EventStoreConfiguration;
-import io.axoniq.eventstore.grpc.EventWithToken;
+import io.axoniq.eventstore.client.util.Broadcaster;
 import io.axoniq.eventstore.grpc.*;
-import io.axoniq.eventstore.util.Broadcaster;
 import io.grpc.Channel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -19,8 +17,8 @@ import java.util.stream.Stream;
 /**
  * Author: marc
  */
-public class EventStoreGateway {
-    private final Logger logger = LoggerFactory.getLogger(EventStoreGateway.class);
+public class EventStoreClient {
+    private final Logger logger = LoggerFactory.getLogger(EventStoreClient.class);
 
     private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
     private final EventStoreConfiguration eventStoreConfiguration;
@@ -30,7 +28,7 @@ public class EventStoreGateway {
     private final ChannelManager channelManager;
     private boolean shutdown;
 
-    public EventStoreGateway(EventStoreConfiguration eventStoreConfiguration ) {
+    public EventStoreClient(EventStoreConfiguration eventStoreConfiguration) {
         this.eventStoreConfiguration = eventStoreConfiguration;
         this.tokenAddingInterceptor = new TokenAddingInterceptor(eventStoreConfiguration.getToken());
         this.channelManager = new ChannelManager(eventStoreConfiguration.getCertFile());
@@ -48,7 +46,12 @@ public class EventStoreGateway {
     private ClusterInfo discoverEventStore() {
         eventStoreServer.set(null);
         Broadcaster<ClusterInfo> b = new Broadcaster<>(eventStoreConfiguration.getServerNodes(), this::retrieveClusterInfo, this::nodeReceived);
-        b.broadcast(TimeUnit.SECONDS, 1);
+        try {
+            b.broadcast(1, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ClientConnectionException("Thread was interrupted while attempting to connect to the server", e);
+        }
         return eventStoreServer.get();
     }
 
@@ -64,7 +67,7 @@ public class EventStoreGateway {
     }
 
     private Channel getChannelToEventStore() {
-        if( shutdown) return null;
+        if (shutdown) return null;
         CompletableFuture<ClusterInfo> masterInfoCompletableFuture = new CompletableFuture<>();
         getEventStoreAsync(eventStoreConfiguration.getConnectionRetryCount(), masterInfoCompletableFuture);
         try {
@@ -76,16 +79,16 @@ public class EventStoreGateway {
 
     private void getEventStoreAsync(int retries, CompletableFuture<ClusterInfo> result) {
         ClusterInfo currentEventStore = eventStoreServer.get();
-        if( currentEventStore != null) {
+        if (currentEventStore != null) {
             result.complete(currentEventStore);
-        } else  {
+        } else {
             currentEventStore = discoverEventStore();
-            if( currentEventStore != null) {
+            if (currentEventStore != null) {
                 result.complete(currentEventStore);
             } else {
-                if( retries > 0)
-                    executorService.schedule( () -> getEventStoreAsync( retries-1, result),
-                            eventStoreConfiguration.getConnectionRetry(), TimeUnit.MILLISECONDS);
+                if (retries > 0)
+                    executorService.schedule(() -> getEventStoreAsync(retries - 1, result),
+                                             eventStoreConfiguration.getConnectionRetry(), TimeUnit.MILLISECONDS);
                 else
                     result.completeExceptionally(new RuntimeException("No available event store server"));
             }
@@ -93,21 +96,29 @@ public class EventStoreGateway {
     }
 
     private void stopChannelToEventStore() {
-        eventStoreServer.getAndUpdate(current -> {
-            if( current != null) {
-                logger.info("Shutting down gRPC channel");
-                channelManager.shutdown(current);
-            }
-            return null;
-        });
+        ClusterInfo current = eventStoreServer.getAndSet(null);
+        if (current != null) {
+            logger.info("Shutting down gRPC channel");
+            channelManager.shutdown(current);
+        }
     }
 
+    /**
+     * Retrieves the events for an aggregate described in given {@code request}.
+     *
+     * @param request The request describing the aggregate to retrieve messages for
+     * @return a Stream providing access to Events published by the aggregate described in the request
+     * @throws ExecutionException   when an error was reported while reading events
+     * @throws InterruptedException when the thread was interrupted while reading events from the server
+     */
     public Stream<Event> listAggregateEvents(GetAggregateEventsRequest request) throws ExecutionException, InterruptedException {
-        CompletableFuture<Stream<Event>> stream  = new CompletableFuture<>();
+        CompletableFuture<Stream<Event>> stream = new CompletableFuture<>();
         long before = System.currentTimeMillis();
+
         eventStoreStub().listAggregateEvents(request, new StreamObserver<Event>() {
             Stream.Builder<Event> eventStream = Stream.builder();
             int count;
+
             @Override
             public void onNext(Event event) {
                 eventStream.accept(event);
@@ -123,12 +134,19 @@ public class EventStoreGateway {
             @Override
             public void onCompleted() {
                 stream.complete(eventStream.build());
-                logger.debug("Done request for {}: {}ms, {} events", request.getAggregateId(), System.currentTimeMillis() - before, count);
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Done request for {}: {}ms, {} events", request.getAggregateId(), System.currentTimeMillis() - before, count);
+                }
             }
         });
         return stream.get();
     }
 
+    /**
+     *
+     * @param responseStreamObserver
+     * @return
+     */
     public StreamObserver<GetEventsRequest> listEvents(StreamObserver<EventWithToken> responseStreamObserver) {
         StreamObserver<EventWithToken> wrappedStreamObserver = new StreamObserver<EventWithToken>() {
             @Override
@@ -197,7 +215,7 @@ public class EventStoreGateway {
     }
 
     private void checkConnectionException(Throwable ex) {
-        if( ex instanceof StatusRuntimeException && ((StatusRuntimeException)ex).getStatus().getCode().equals(Status.UNAVAILABLE.getCode()) ) {
+        if (ex instanceof StatusRuntimeException && ((StatusRuntimeException) ex).getStatus().getCode().equals(Status.UNAVAILABLE.getCode())) {
             stopChannelToEventStore();
         }
     }

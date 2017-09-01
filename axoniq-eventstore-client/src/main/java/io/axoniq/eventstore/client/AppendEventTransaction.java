@@ -1,4 +1,4 @@
-package io.axoniq.eventstore.gateway;
+package io.axoniq.eventstore.client;
 
 import io.axoniq.eventstore.grpc.Confirmation;
 import io.axoniq.eventstore.grpc.EventWithContext;

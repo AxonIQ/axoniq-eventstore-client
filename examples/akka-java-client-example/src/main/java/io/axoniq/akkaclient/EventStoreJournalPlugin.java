@@ -7,8 +7,8 @@ import akka.persistence.PersistentImpl;
 import akka.persistence.PersistentRepr;
 import akka.persistence.journal.japi.AsyncWriteJournal;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.axoniq.eventstore.EventStoreConfiguration;
-import io.axoniq.eventstore.axon.AxoniqEventStoreClient;
+import io.axoniq.eventstore.client.EventStoreConfiguration;
+import io.axoniq.eventstore.client.axon.AxonIQEventStore;
 import org.axonframework.eventhandling.EventMessage;
 import org.axonframework.eventsourcing.DomainEventMessage;
 import org.axonframework.eventsourcing.GenericDomainEventMessage;
@@ -32,7 +32,7 @@ public class EventStoreJournalPlugin extends AsyncWriteJournal {
 
     private final ObjectMapper mapper = new ObjectMapper();
     private final Serializer serializer;
-    private final AxoniqEventStoreClient eventStore;
+    private final AxonIQEventStore eventStore;
 
     public EventStoreJournalPlugin() {
         logger.debug("EventStoreJournalPlugin constructor");
@@ -43,7 +43,7 @@ public class EventStoreJournalPlugin extends AsyncWriteJournal {
 //                .ssl("resources/axoniq-public.crt")
                 .build();
         serializer = new JacksonSerializer();
-        eventStore = new AxoniqEventStoreClient(eventStoreConfiguration, serializer);
+        eventStore = new AxonIQEventStore(eventStoreConfiguration, serializer);
     }
 
     @Override

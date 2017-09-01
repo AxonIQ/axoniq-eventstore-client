@@ -7,11 +7,11 @@ option java_multiple_files = true;
 service EventStore {
 
     // Accepts a stream of Events returning a Confirmation when completed.
-    rpc AppendEvent ( stream EventWithContext) returns (Confirmation) {
+    rpc AppendEvent (stream EventWithContext) returns (Confirmation) {
     }
 
     // Accepts a Snapshot event returning a Confirmation when completed.
-    rpc AppendSnapshot ( EventWithContext) returns (Confirmation) {
+    rpc AppendSnapshot (EventWithContext) returns (Confirmation) {
     }
 
     // Retrieves the Eevents for a given aggregate. Results are streamed rather than returned at once.
@@ -23,12 +23,13 @@ service EventStore {
     }
 
     // Gets the highest sequence number for a specific aggregate.
-    rpc ReadHighestSequenceNr( ReadHighestSequenceNrRequest ) returns (ReadHighestSequenceNrResponse) {}
+    rpc ReadHighestSequenceNr (ReadHighestSequenceNrRequest) returns (ReadHighestSequenceNrResponse) {
+    }
 }
 
 service Cluster {
 
-    rpc RetrieveClusterInfo(RetrieveClusterInfoRequest) returns (ClusterInfo) {
+    rpc RetrieveClusterInfo (RetrieveClusterInfoRequest) returns (ClusterInfo) {
     }
 }
 
@@ -71,6 +72,8 @@ message Confirmation {
 message GetAggregateEventsRequest {
     string aggregate_id = 1;
     string context = 2;
+    int64 initialSequence = 3;
+    bool allowSnapshots = 4;
 }
 
 message GetEventsRequest {

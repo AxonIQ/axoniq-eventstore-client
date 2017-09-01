@@ -1,4 +1,4 @@
-package io.axoniq.eventstore;
+package io.axoniq.eventstore.client;
 
 import io.axoniq.eventstore.grpc.NodeInfo;
 import org.springframework.beans.factory.annotation.Value;

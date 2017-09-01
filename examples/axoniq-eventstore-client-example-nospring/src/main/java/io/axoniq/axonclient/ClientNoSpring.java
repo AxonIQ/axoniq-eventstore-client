@@ -1,7 +1,7 @@
 package io.axoniq.axonclient;
 
-import io.axoniq.eventstore.EventStoreConfiguration;
-import io.axoniq.eventstore.axon.AxoniqEventStoreClient;
+import io.axoniq.eventstore.client.EventStoreConfiguration;
+import io.axoniq.eventstore.client.axon.AxonIQEventStore;
 import org.axonframework.eventhandling.TrackedEventMessage;
 import org.axonframework.eventsourcing.GenericTrackedDomainEventMessage;
 import org.axonframework.eventsourcing.eventstore.TrackingEventStream;
@@ -27,7 +27,7 @@ public class ClientNoSpring {
                 .build();
 
         Serializer serializer = new JacksonSerializer();
-        AxoniqEventStoreClient eventStore = new AxoniqEventStoreClient(eventStoreConfiguration, serializer);
+        AxonIQEventStore eventStore = new AxonIQEventStore(eventStoreConfiguration, serializer);
         try {
             TrackingEventStream stream = eventStore.openStream(null);
             int count = 20;
