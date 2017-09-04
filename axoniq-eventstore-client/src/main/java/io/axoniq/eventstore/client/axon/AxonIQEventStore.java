@@ -9,7 +9,9 @@ import io.axoniq.eventstore.grpc.EventWithToken;
 import io.axoniq.eventstore.grpc.GetAggregateEventsRequest;
 import io.axoniq.eventstore.grpc.GetEventsRequest;
 import io.axoniq.eventstore.client.util.FlowControllingStreamObserver;
+import org.axonframework.commandhandling.model.ConcurrencyException;
 import org.axonframework.common.Assert;
+import org.axonframework.common.AxonTransientException;
 import org.axonframework.eventhandling.EventMessage;
 import org.axonframework.eventsourcing.DomainEventMessage;
 import org.axonframework.eventsourcing.GenericDomainEventMessage;
@@ -108,6 +110,8 @@ public class AxonIQEventStore extends AbstractEventStore {
                     CurrentUnitOfWork.get().root().onCommit(u -> {
                         try {
                             appendEventTransaction.commit();
+                        } catch (ExecutionException ex) {
+                            throw new ConcurrencyException("Commit failed on server", ex);
                         } catch (Exception e) {
                             throw new EventStoreException("Exception occurred while attempting to commit a transaction", e);
                         }
@@ -123,7 +127,9 @@ public class AxonIQEventStore extends AbstractEventStore {
             if (!CurrentUnitOfWork.isStarted()) {
                 try {
                     sender.commit();
-                } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                } catch (ExecutionException ex) {
+                    throw new ConcurrencyException("Commit failed on server", ex);
+                } catch (InterruptedException | TimeoutException e) {
                     throw new EventStoreException("Exception occurred while attempting to commit", e);
                 }
             }
