@@ -15,14 +15,14 @@ public class EventStoreImpl extends EventStoreGrpc.EventStoreImplBase {
     private final List<Event> events = new LinkedList<>();
 
     @Override
-    public StreamObserver<EventWithContext> appendEvent(StreamObserver<Confirmation> responseObserver) {
-        return new StreamObserver<EventWithContext>() {
+    public StreamObserver<Event> appendEvent(StreamObserver<Confirmation> responseObserver) {
+        return new StreamObserver<Event>() {
 
             private final List<Event> eventsInTx = new LinkedList<>();
 
             @Override
-            public void onNext(EventWithContext eventWithContext) {
-                eventsInTx.add(eventWithContext.getEvent());
+            public void onNext(Event event) {
+                eventsInTx.add(event);
             }
 
             @Override
@@ -40,7 +40,7 @@ public class EventStoreImpl extends EventStoreGrpc.EventStoreImplBase {
     }
 
     @Override
-    public void appendSnapshot(EventWithContext request, StreamObserver<Confirmation> responseObserver) {
+    public void appendSnapshot(Event request, StreamObserver<Confirmation> responseObserver) {
         super.appendSnapshot(request, responseObserver);
     }
 

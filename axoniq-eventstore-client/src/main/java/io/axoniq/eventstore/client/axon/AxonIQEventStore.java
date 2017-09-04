@@ -5,7 +5,6 @@ import io.axoniq.eventstore.Event;
 import io.axoniq.eventstore.client.EventStoreConfiguration;
 import io.axoniq.eventstore.client.AppendEventTransaction;
 import io.axoniq.eventstore.client.EventStoreClient;
-import io.axoniq.eventstore.grpc.EventWithContext;
 import io.axoniq.eventstore.grpc.EventWithToken;
 import io.axoniq.eventstore.grpc.GetAggregateEventsRequest;
 import io.axoniq.eventstore.grpc.GetEventsRequest;
@@ -130,7 +129,7 @@ public class AxonIQEventStore extends AbstractEventStore {
             }
         }
 
-        public EventWithContext map(EventMessage eventMessage) {
+        public Event map(EventMessage eventMessage) {
             Event.Builder builder = Event.newBuilder();
             if (eventMessage instanceof GenericDomainEventMessage) {
                 builder.setAggregateIdentifier(((GenericDomainEventMessage) eventMessage).getAggregateIdentifier())
@@ -145,7 +144,7 @@ public class AxonIQEventStore extends AbstractEventStore {
                                                                     .setData(ByteString.copyFrom(serializedPayload.getData())))
                    .setTimestamp(eventMessage.getTimestamp().toEpochMilli());
             eventMessage.getMetaData().forEach((k, v) -> builder.putMetaData(k, converter.convertToMetaDataValue(v)));
-            return EventWithContext.newBuilder().setEvent(builder.build()).build();
+            return builder.build();
         }
 
 

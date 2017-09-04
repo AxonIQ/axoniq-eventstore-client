@@ -7,11 +7,11 @@ option java_multiple_files = true;
 service EventStore {
 
     // Accepts a stream of Events returning a Confirmation when completed.
-    rpc AppendEvent (stream EventWithContext) returns (Confirmation) {
+    rpc AppendEvent (stream Event) returns (Confirmation) {
     }
 
     // Accepts a Snapshot event returning a Confirmation when completed.
-    rpc AppendSnapshot (EventWithContext) returns (Confirmation) {
+    rpc AppendSnapshot (Event) returns (Confirmation) {
     }
 
     // Retrieves the Eevents for a given aggregate. Results are streamed rather than returned at once.
@@ -40,7 +40,6 @@ message EventWithToken {
 
 message ReadHighestSequenceNrRequest {
     string aggregate_id = 1;
-    string context = 2;
     int64 from_sequence_nr = 3;
 }
 
@@ -71,18 +70,12 @@ message Confirmation {
 
 message GetAggregateEventsRequest {
     string aggregate_id = 1;
-    string context = 2;
-    int64 initialSequence = 3;
-    bool allowSnapshots = 4;
+    int64 initialSequence = 2;
+    bool allowSnapshots = 3;
 }
 
 message GetEventsRequest {
     int64 tracking_token = 1;
     int64 number_of_permits = 2;
-    string context = 3;
 }
 
-message EventWithContext {
-    Event event = 1;
-    string context = 2;
-}

@@ -144,8 +144,8 @@ public class EventStoreClient {
 
     /**
      *
-     * @param responseStreamObserver
-     * @return
+     * @param responseStreamObserver: observer for messages from server
+     * @return stream observer to send request messages to server
      */
     public StreamObserver<GetEventsRequest> listEvents(StreamObserver<EventWithToken> responseStreamObserver) {
         StreamObserver<EventWithToken> wrappedStreamObserver = new StreamObserver<EventWithToken>() {
@@ -169,7 +169,7 @@ public class EventStoreClient {
         return eventStoreStub().listEvents(wrappedStreamObserver);
     }
 
-    public CompletableFuture<Confirmation> appendSnapshot(EventWithContext snapshot) {
+    public CompletableFuture<Confirmation> appendSnapshot(Event snapshot) {
 
         CompletableFuture<Confirmation> confirmationFuture = new CompletableFuture<>();
         eventStoreStub().appendSnapshot(snapshot, new StreamObserver<Confirmation>() {
