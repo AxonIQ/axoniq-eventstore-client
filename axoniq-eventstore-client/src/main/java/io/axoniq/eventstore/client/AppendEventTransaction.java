@@ -1,6 +1,7 @@
 package io.axoniq.eventstore.client;
 
 import io.axoniq.eventstore.Event;
+import io.axoniq.eventstore.client.axon.AxonErrorMapping;
 import io.axoniq.eventstore.grpc.Confirmation;
 import io.grpc.stub.StreamObserver;
 
@@ -25,9 +26,17 @@ public class AppendEventTransaction {
         eventStreamObserver.onNext(event);
     }
 
-    public void commit() throws InterruptedException, ExecutionException, TimeoutException {
+    public void commit()  {
         eventStreamObserver.onCompleted();
-        observer.get(10, TimeUnit.SECONDS);
+        try {
+            observer.get(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            throw AxonErrorMapping.convert(e);
+        } catch (ExecutionException e) {
+            throw AxonErrorMapping.convert(e.getCause());
+        } catch (TimeoutException e) {
+            throw AxonErrorMapping.convert(e);
+        }
     }
 
     public void rollback(Throwable reason) {

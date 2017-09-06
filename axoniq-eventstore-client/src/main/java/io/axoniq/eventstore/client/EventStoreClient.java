@@ -2,6 +2,8 @@ package io.axoniq.eventstore.client;
 
 import io.axoniq.eventstore.Event;
 import io.axoniq.eventstore.client.util.Broadcaster;
+import io.axoniq.eventstore.client.util.EventStoreClientException;
+import io.axoniq.eventstore.client.util.GrpcExceptionParser;
 import io.axoniq.eventstore.grpc.*;
 import io.grpc.Channel;
 import io.grpc.Status;
@@ -72,8 +74,10 @@ public class EventStoreClient {
         getEventStoreAsync(eventStoreConfiguration.getConnectionRetryCount(), masterInfoCompletableFuture);
         try {
             return channelManager.getChannel(masterInfoCompletableFuture.get().getMaster());
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
+        } catch( ExecutionException e) {
+            throw (RuntimeException) e.getCause();
+        } catch (InterruptedException e) {
+            throw new EventStoreClientException("AXONIQ-0001", e.getMessage(), e);
         }
     }
 
@@ -90,7 +94,7 @@ public class EventStoreClient {
                     executorService.schedule(() -> getEventStoreAsync(retries - 1, result),
                                              eventStoreConfiguration.getConnectionRetry(), TimeUnit.MILLISECONDS);
                 else
-                    result.completeExceptionally(new RuntimeException("No available event store server"));
+                    result.completeExceptionally(new EventStoreClientException("AXONIQ-0001", "No available event store server"));
             }
         }
     }
@@ -128,7 +132,7 @@ public class EventStoreClient {
             @Override
             public void onError(Throwable throwable) {
                 checkConnectionException(throwable);
-                stream.completeExceptionally(throwable);
+                stream.completeExceptionally(GrpcExceptionParser.parse(throwable));
             }
 
             @Override
@@ -157,7 +161,7 @@ public class EventStoreClient {
             @Override
             public void onError(Throwable throwable) {
                 checkConnectionException(throwable);
-                responseStreamObserver.onError(throwable);
+                responseStreamObserver.onError(GrpcExceptionParser.parse(throwable));
             }
 
             @Override
@@ -181,7 +185,7 @@ public class EventStoreClient {
             @Override
             public void onError(Throwable throwable) {
                 checkConnectionException(throwable);
-                confirmationFuture.completeExceptionally(throwable);
+                confirmationFuture.completeExceptionally(GrpcExceptionParser.parse(throwable));
             }
 
             @Override
@@ -204,7 +208,7 @@ public class EventStoreClient {
             @Override
             public void onError(Throwable throwable) {
                 checkConnectionException(throwable);
-                futureConfirmation.completeExceptionally(throwable);
+                futureConfirmation.completeExceptionally(GrpcExceptionParser.parse(throwable));
             }
 
             @Override

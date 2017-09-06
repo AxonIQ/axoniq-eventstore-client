@@ -107,15 +107,7 @@ public class AxonIQEventStore extends AbstractEventStore {
                 sender = CurrentUnitOfWork.get().root().getOrComputeResource(APPEND_EVENT_TRANSACTION, k -> {
                     AppendEventTransaction appendEventTransaction = eventStoreClient.createAppendEventConnection();
                     CurrentUnitOfWork.get().root().onRollback(u -> appendEventTransaction.rollback(u.getExecutionResult().getExceptionResult()));
-                    CurrentUnitOfWork.get().root().onCommit(u -> {
-                        try {
-                            appendEventTransaction.commit();
-                        } catch (ExecutionException ex) {
-                            throw new ConcurrencyException("Commit failed on server", ex);
-                        } catch (Exception e) {
-                            throw new EventStoreException("Exception occurred while attempting to commit a transaction", e);
-                        }
-                    });
+                    CurrentUnitOfWork.get().root().onCommit(u -> appendEventTransaction.commit());
                     return appendEventTransaction;
                 });
             } else {
@@ -125,13 +117,7 @@ public class AxonIQEventStore extends AbstractEventStore {
                 sender.append(map(eventMessage));
             }
             if (!CurrentUnitOfWork.isStarted()) {
-                try {
-                    sender.commit();
-                } catch (ExecutionException ex) {
-                    throw new ConcurrencyException("Commit failed on server", ex);
-                } catch (InterruptedException | TimeoutException e) {
-                    throw new EventStoreException("Exception occurred while attempting to commit", e);
-                }
+                sender.commit();
             }
         }
 
@@ -169,7 +155,7 @@ public class AxonIQEventStore extends AbstractEventStore {
                     }
                 });
             } catch (Throwable e) {
-                throw new EventStoreException("An exception occurred while attempting to store a Snapshot", e);
+                throw AxonErrorMapping.convert(e);
             }
         }
 
@@ -186,7 +172,7 @@ public class AxonIQEventStore extends AbstractEventStore {
             try {
                 return eventStoreClient.listAggregateEvents(request.build()).map(GrpcBackedDomainEventData::new);
             } catch (Exception e) {
-                throw new EventStoreException("An error occurred while reading an Aggregate's events", e);
+                throw AxonErrorMapping.convert(e);
             }
         }
 

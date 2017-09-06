@@ -56,7 +56,7 @@ public class Broadcaster<T> {
 
             @Override
             public void onError(Throwable throwable) {
-                logger.warn("Error from: {}:{} - {}", node.getHostName(), node.getGrpcPort(), throwable.getMessage());
+                logger.warn("Error from: {}:{} - {}", node.getHostName(), node.getGrpcPort(), GrpcExceptionParser.parse(throwable).toString());
                 countDownLatch.countDown();
             }
 
