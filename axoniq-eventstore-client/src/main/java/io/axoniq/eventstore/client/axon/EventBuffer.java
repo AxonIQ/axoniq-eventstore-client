@@ -114,7 +114,11 @@ public class EventBuffer implements TrackingEventStream {
 
     @Override
     public boolean hasNextAvailable(int timeout, TimeUnit timeUnit) throws InterruptedException {
-        if (exception != null) throw exception;
+        if (exception != null) {
+            RuntimeException runtimeException = exception;
+            this.exception = null;
+            throw runtimeException;
+        }
         long deadline = System.currentTimeMillis() + timeUnit.toMillis(timeout);
         try {
             while (peekEvent == null && !eventStream.hasNext() && System.currentTimeMillis() < deadline) {
@@ -130,7 +134,11 @@ public class EventBuffer implements TrackingEventStream {
 
     @Override
     public TrackedEventMessage<?> nextAvailable() throws InterruptedException {
-        if (exception != null) throw exception;
+        if (exception != null) {
+            RuntimeException runtimeException = exception;
+            this.exception = null;
+            throw runtimeException;
+        }
         try {
             hasNextAvailable(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
             return peekEvent == null ? eventStream.next() : peekEvent;
