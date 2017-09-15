@@ -27,15 +27,15 @@
             - We use (in our default client artifact) a statically-linked version of Netty TcNative. This contains
               native libraries for BoringSSL (Google fork of OpenSSL). For security reasons, it would be nice
               to stick to the latest version of this artifact (which is 2.0.6 as of August 30th, 2017).
-            - gRPC uses a bunch of Netty dependencies. As of gRPC 1.5.0, it defaults to Netty 4.1.12. For some
+            - gRPC uses a bunch of Netty dependencies. As of gRPC 1.6.1, it defaults to Netty 4.1.14. For some
               dependencies, it can use a higher version, but not for all.
             - Native library file names were changed in Netty TcNative 2.0.6. This requires
               a corresponding change in Netty module Netty Handler, which has been done in 4.1.15.
             - Mixing versions of Netty modules doesn't work.
-            - As a result, as long as we are on gRPC 1.5.0, we have Netty 4.1.12, and are forced to use
+            - As a result, as long as we are on gRPC 1.6.1, we have Netty 4.1.14, and are forced to use
               Netty TcNative 2.0.5 instead of the latest 2.0.6.
         -->
-        <grpc.version>1.5.0</grpc.version>
+        <grpc.version>1.6.1</grpc.version>
         <netty.tcnative.version>2.0.5.Final</netty.tcnative.version>
     </properties>
 
