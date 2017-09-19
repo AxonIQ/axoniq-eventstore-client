@@ -2,6 +2,7 @@ package io.axoniq.eventstore.client.axon;
 
 import com.google.protobuf.ByteString;
 import io.axoniq.eventstore.MetaDataValue;
+import org.axonframework.messaging.MetaData;
 import org.axonframework.serialization.SerializedObject;
 import org.axonframework.serialization.Serializer;
 import org.axonframework.serialization.SimpleSerializedObject;
@@ -76,13 +77,13 @@ public class GrpcMetaDataConverter {
      * @return a map containing the same keys, referencing to the Java representation of each corresponding value in
      * the given {@code metaDataMap}
      */
-    public Map<String, ?> convert(Map<String, MetaDataValue> metaDataMap) {
+    public MetaData convert(Map<String, MetaDataValue> metaDataMap) {
         if (metaDataMap.isEmpty()) {
-            return Collections.emptyMap();
+            return MetaData.emptyInstance();
         }
         Map<String, Object> metaData = new HashMap<>(metaDataMap.size());
         metaDataMap.forEach((k, v) -> metaData.put(k, convertFromMetaDataValue(v)));
-        return metaData;
+        return MetaData.from(metaData);
     }
 
     /**
