@@ -14,11 +14,11 @@ public class EventStoreConfiguration {
     @Value("${axoniq.eventstore.servers:#{null}}")
     private String servers;
 
-    @Value("${axoniq.eventstore.flowControl.initialNrOfPermits:10000}")
+    @Value("${axoniq.eventstore.flowControl.initialNrOfPermits:100000}")
     private Integer initialNrOfPermits;
-    @Value("${axoniq.eventstore.flowControl.nrOfNewPermits:9000}")
+    @Value("${axoniq.eventstore.flowControl.nrOfNewPermits:90000}")
     private Integer nrOfNewPermits;
-    @Value("${axoniq.eventstore.flowControl.newPermitsThreshold:1000}")
+    @Value("${axoniq.eventstore.flowControl.newPermitsThreshold:10000}")
     private Integer newPermitsThreshold;
     @Value("${axoniq.eventstore.token:#{null}}")
     private String token;
