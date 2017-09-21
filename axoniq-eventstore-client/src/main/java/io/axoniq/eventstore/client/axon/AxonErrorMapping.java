@@ -7,7 +7,6 @@ import org.axonframework.common.AxonException;
 import org.axonframework.eventsourcing.eventstore.EventStoreException;
 
 import java.util.Arrays;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 
