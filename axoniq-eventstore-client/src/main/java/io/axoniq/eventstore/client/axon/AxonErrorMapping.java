@@ -8,6 +8,7 @@ import org.axonframework.eventsourcing.eventstore.EventStoreException;
 
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 
 /**
@@ -60,6 +61,9 @@ public enum AxonErrorMapping {
             }
         }
 
+        if( t instanceof TimeoutException) {
+            return new org.axonframework.messaging.ExecutionException("Timeout while executing request", t);
+        }
         return new EventStoreException(t.getMessage(), t);
     }
 
