@@ -2,6 +2,7 @@ package io.axoniq.eventstore.client;
 
 import io.axoniq.eventstore.Event;
 import io.axoniq.eventstore.client.util.Broadcaster;
+import io.axoniq.eventstore.client.util.EventCipher;
 import io.axoniq.eventstore.client.util.EventStoreClientException;
 import io.axoniq.eventstore.client.util.GrpcExceptionParser;
 import io.axoniq.eventstore.grpc.*;
@@ -25,6 +26,7 @@ public class EventStoreClient {
     private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
     private final EventStoreConfiguration eventStoreConfiguration;
     private final TokenAddingInterceptor tokenAddingInterceptor;
+    private final EventCipher eventCipher;
 
     private final AtomicReference<ClusterInfo> eventStoreServer = new AtomicReference<>();
     private final ChannelManager channelManager;
@@ -34,6 +36,7 @@ public class EventStoreClient {
         this.eventStoreConfiguration = eventStoreConfiguration;
         this.tokenAddingInterceptor = new TokenAddingInterceptor(eventStoreConfiguration.getToken());
         this.channelManager = new ChannelManager(eventStoreConfiguration.getCertFile());
+        this.eventCipher = eventStoreConfiguration.getEventCipher();
     }
 
     public void shutdown() {
@@ -125,7 +128,7 @@ public class EventStoreClient {
 
             @Override
             public void onNext(Event event) {
-                eventStream.accept(event);
+                eventStream.accept(eventCipher.decrypt(event));
                 count++;
             }
 
@@ -155,7 +158,7 @@ public class EventStoreClient {
         StreamObserver<EventWithToken> wrappedStreamObserver = new StreamObserver<EventWithToken>() {
             @Override
             public void onNext(EventWithToken eventWithToken) {
-                responseStreamObserver.onNext(eventWithToken);
+                responseStreamObserver.onNext(eventCipher.decrypt(eventWithToken));
             }
 
             @Override
@@ -176,7 +179,7 @@ public class EventStoreClient {
     public CompletableFuture<Confirmation> appendSnapshot(Event snapshot) {
 
         CompletableFuture<Confirmation> confirmationFuture = new CompletableFuture<>();
-        eventStoreStub().appendSnapshot(snapshot, new StreamObserver<Confirmation>() {
+        eventStoreStub().appendSnapshot(eventCipher.encrypt(snapshot), new StreamObserver<Confirmation>() {
             @Override
             public void onNext(Confirmation confirmation) {
                 confirmationFuture.complete(confirmation);
@@ -215,7 +218,7 @@ public class EventStoreClient {
             public void onCompleted() {
                 // no-op: already
             }
-        }), futureConfirmation);
+        }), futureConfirmation, eventCipher);
     }
 
     private void checkConnectionException(Throwable ex) {

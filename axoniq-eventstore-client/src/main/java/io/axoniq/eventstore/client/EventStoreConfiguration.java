@@ -1,8 +1,11 @@
 package io.axoniq.eventstore.client;
 
+import io.axoniq.eventstore.Event;
+import io.axoniq.eventstore.client.util.EventCipher;
 import io.axoniq.eventstore.grpc.NodeInfo;
 import org.springframework.beans.factory.annotation.Value;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -29,8 +32,20 @@ public class EventStoreConfiguration {
     @Value("${axoniq.eventstore.connectionRetryCount:5}")
     private int connectionRetryCount;
 
+    private EventCipher eventCipher = new EventCipher();
 
     public EventStoreConfiguration() {
+    }
+
+    public EventStoreConfiguration(EventCipher eventCipher) {
+        this.eventCipher = eventCipher;
+    }
+
+    @Value("${axoniq.eventstore.eventSecretKey:#{null}}")
+    private void setEventSecretKey(String key) {
+        if(key != null && key.length() > 0) {
+            eventCipher = new EventCipher(key.getBytes(StandardCharsets.US_ASCII));
+        }
     }
 
     public static Builder newBuilder(String servers) {
@@ -80,6 +95,10 @@ public class EventStoreConfiguration {
         return certFile;
     }
 
+    public EventCipher getEventCipher() {
+        return eventCipher;
+    }
+
     public static class Builder {
         private EventStoreConfiguration instance;
 
@@ -109,16 +128,27 @@ public class EventStoreConfiguration {
             return this;
         }
 
-        public EventStoreConfiguration build() {
-            return instance;
-        }
-
         public Builder flowControl(Integer initialNrOfPermits, Integer nrOfNewPermits, Integer newPermitsThreshold) {
             instance.initialNrOfPermits = initialNrOfPermits;
             instance.nrOfNewPermits = nrOfNewPermits;
             instance.newPermitsThreshold = newPermitsThreshold;
             return this;
         }
+
+        public Builder setEventSecretKey(String key) {
+            instance.setEventSecretKey(key);
+            return this;
+        }
+
+        public Builder eventCipher(EventCipher eventCipher) {
+            instance.eventCipher = eventCipher;
+            return this;
+        }
+
+        public EventStoreConfiguration build() {
+            return instance;
+        }
+
     }
 
 }
