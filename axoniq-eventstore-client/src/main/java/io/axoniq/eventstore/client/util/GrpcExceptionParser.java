@@ -14,7 +14,7 @@ public class GrpcExceptionParser {
         String code = "AXONIQ-0001";
         if( ex instanceof StatusRuntimeException) {
             if(ex.getCause() instanceof EventStoreClientException) {
-                throw (EventStoreClientException)ex.getCause();
+                return (EventStoreClientException)ex.getCause();
             }
             StatusRuntimeException statusRuntimeException = (StatusRuntimeException)ex;
             Metadata trailer = statusRuntimeException.getTrailers();
