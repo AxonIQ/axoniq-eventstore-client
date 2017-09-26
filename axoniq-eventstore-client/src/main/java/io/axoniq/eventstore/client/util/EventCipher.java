@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2017. AxonIQ
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.axoniq.eventstore.client.util;
 
 import com.google.protobuf.ByteString;
@@ -44,7 +59,7 @@ public class EventCipher {
         this.secretKeys = new SecretKeySpec[secretKeys.size()];
         for(int i = 0; i < this.secretKeys.length; i++) {
             byte[] key = secretKeys.get(i);
-            if(key.length != 16 && key.length != 24 && key.length != 24) {
+            if(key.length != 16 && key.length != 24) {
                 throw new EventStoreClientException("AXONIQ-8001",
                         String.format("secret key length should be 128, 196 or 258 bits but is %d bytes for key %d",
                                 key.length, i));
@@ -56,49 +71,26 @@ public class EventCipher {
         this.encryptingCiphers = new ThreadLocal[this.secretKeys.length];
         for(int i = 0; i < this.secretKeys.length; i++) {
             final int keyIndex = i;
-            this.encryptingCiphers[i] = new ThreadLocal<Cipher>() {
-                @Override
-                protected Cipher initialValue() {
-                    return initCipher(Cipher.ENCRYPT_MODE, keyIndex);
-                }
-            };
+            this.encryptingCiphers[i] = ThreadLocal.withInitial(() -> initCipher(Cipher.ENCRYPT_MODE, keyIndex));
             this.encryptingCiphers[i].get(); // If we can't create the cipher, better to know it sooner than later
         }
         this.decryptingCiphers = new ThreadLocal[this.secretKeys.length];
         for(int i = 0; i < this.secretKeys.length; i++) {
             final int keyIndex = i;
-            this.decryptingCiphers[i] = new ThreadLocal<Cipher>() {
-                @Override
-                protected Cipher initialValue() {
-                    return initCipher(Cipher.DECRYPT_MODE, keyIndex);
-                }
-            };
+            this.decryptingCiphers[i] = ThreadLocal.withInitial(() -> initCipher(Cipher.DECRYPT_MODE, keyIndex));
             this.decryptingCiphers[i].get(); // If we can't create the cipher, better to know it sooner than later
         }
-        this.nonceGenerator = new ThreadLocal<SecureRandom>() {
-            @Override
-            protected SecureRandom initialValue() {
-                return new SecureRandom();
-            }
-        };
+        this.nonceGenerator = ThreadLocal.withInitial(SecureRandom::new);
     }
 
     private Cipher initCipher(int mode, int keyIndex) {
-        Cipher cipher = null;
         try {
-            cipher = Cipher.getInstance(ALGORITHM);
+            Cipher cipher = Cipher.getInstance(ALGORITHM);
             cipher.init(mode, secretKeys[keyIndex], ivParameterSpec);
             return cipher;
         } catch (Exception ex) {
             throw new EventStoreClientException("AXONIQ-8000", "Unexpected exception initializing crypto algorithm", ex);
         }
-    }
-
-    public EventWithToken encrypt(EventWithToken clearEventWithToken) {
-        return EventWithToken
-                .newBuilder(clearEventWithToken)
-                .setEvent(encrypt(clearEventWithToken.getEvent()))
-                .build();
     }
 
     public EventWithToken decrypt(EventWithToken cryptoEventWithToken) {
@@ -160,8 +152,7 @@ public class EventCipher {
         if(!Arrays.equals(this.magicNumber, magicNumber)) {
             throw new EventStoreClientException("AXONIQ-8002", "Missing magic number after decryption");
         }
-        byte[] clearBytes = Arrays.copyOfRange(decryptedBytes, NONCE_LENGTH + magicNumber.length, decryptedBytes.length);
-        return clearBytes;
+        return Arrays.copyOfRange(decryptedBytes, NONCE_LENGTH + magicNumber.length, decryptedBytes.length);
     }
 
 }
