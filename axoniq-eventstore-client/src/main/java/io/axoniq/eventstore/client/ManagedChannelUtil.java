@@ -9,7 +9,6 @@ import javax.net.ssl.SSLException;
 import java.io.File;
 
 /**
- * Author: marc
  */
 public class ManagedChannelUtil {
     public static ManagedChannel createManagedChannel( String host, int port, String certChainFile) {

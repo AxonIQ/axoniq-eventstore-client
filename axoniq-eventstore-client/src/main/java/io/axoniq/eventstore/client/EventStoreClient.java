@@ -18,7 +18,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 /**
- * Author: marc
  */
 public class EventStoreClient {
     private final Logger logger = LoggerFactory.getLogger(EventStoreClient.class);

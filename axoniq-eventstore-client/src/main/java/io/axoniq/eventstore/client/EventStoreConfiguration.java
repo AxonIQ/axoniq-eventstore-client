@@ -11,7 +11,6 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Author: marc
  */
 public class EventStoreConfiguration {
     @Value("${axoniq.eventstore.servers:#{null}}")

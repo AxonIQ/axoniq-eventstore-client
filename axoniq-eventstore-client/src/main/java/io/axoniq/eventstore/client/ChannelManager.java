@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Author: marc
  */
 public class ChannelManager {
     private final Logger log = LoggerFactory.getLogger(ChannelManager.class);

@@ -1,7 +1,6 @@
 package io.axoniq.eventstore.client.util;
 
 /**
- * Author: marc
  */
 public class EventStoreClientException extends RuntimeException {
 

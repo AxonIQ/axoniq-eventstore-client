@@ -4,7 +4,6 @@ import io.grpc.Metadata;
 import io.grpc.StatusRuntimeException;
 
 /**
- * Author: marc
  * Converts GRPC Exceptions to EventStoreClientException
  */
 public class GrpcExceptionParser {

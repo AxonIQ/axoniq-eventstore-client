@@ -3,7 +3,6 @@ package io.axoniq.eventstore.client;
 import io.grpc.*;
 
 /**
- * Created by marc on 7/17/2017.
  */
 public class TokenAddingInterceptor implements ClientInterceptor {
     static final Metadata.Key<String> ACCESS_TOKEN_KEY =

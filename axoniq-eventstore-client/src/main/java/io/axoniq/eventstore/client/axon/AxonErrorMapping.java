@@ -11,7 +11,6 @@ import java.util.concurrent.TimeoutException;
 
 
 /**
- * Author: marc
  * Converts an EventStoreClientException to the relevant Axon framework exception.
  */
 public enum AxonErrorMapping {

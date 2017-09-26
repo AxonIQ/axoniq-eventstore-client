@@ -12,7 +12,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Author: marc
  */
 public class AppendEventTransaction {
     private final StreamObserver<Event> eventStreamObserver;

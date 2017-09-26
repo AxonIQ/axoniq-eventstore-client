@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Author: marc
  */
 public class FlowControllingStreamObserver<Request, Response> {
     private final StartCommand<Request, Response> startCommand;
