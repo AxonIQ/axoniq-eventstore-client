@@ -190,10 +190,6 @@
                     <minimizeJar>true</minimizeJar>
                     <relocations>
                         <relocation>
-                            <pattern>io.grpc</pattern>
-                            <shadedPattern>io.axoniq.ext.io.grpc</shadedPattern>
-                        </relocation>
-                        <relocation>
                             <pattern>com.google</pattern>
                             <shadedPattern>io.axoniq.ext.com.google</shadedPattern>
                         </relocation>
