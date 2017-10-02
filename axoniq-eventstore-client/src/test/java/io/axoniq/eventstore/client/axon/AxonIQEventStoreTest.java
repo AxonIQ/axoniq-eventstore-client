@@ -26,9 +26,9 @@ public class AxonIQEventStoreTest {
 
     @Before
     public void setUp() throws Exception {
-        server = new StubServer(8123);
+        server = new StubServer(9123);
         server.start();
-        EventStoreConfiguration config = EventStoreConfiguration.newBuilder("localhost:8123")
+        EventStoreConfiguration config = EventStoreConfiguration.newBuilder("localhost:9123")
                                                                 .flowControl(2, 1, 1)
                                                                 .build();
         testSubject = new AxonIQEventStore(config, new XStreamSerializer());

@@ -9,7 +9,7 @@ import io.grpc.stub.StreamObserver;
 public class ClusterImpl extends ClusterGrpc.ClusterImplBase {
     @Override
     public void retrieveClusterInfo(RetrieveClusterInfoRequest request, StreamObserver<ClusterInfo> responseObserver) {
-        responseObserver.onNext(ClusterInfo.newBuilder().setMaster(NodeInfo.newBuilder().setHostName("localhost").setGrpcPort(8123).build()).build());
+        responseObserver.onNext(ClusterInfo.newBuilder().setMaster(NodeInfo.newBuilder().setHostName("localhost").setGrpcPort(9123).build()).build());
         responseObserver.onCompleted();
     }
 }
