@@ -26,10 +26,15 @@ import java.io.File;
 /**
  */
 public class ManagedChannelUtil {
-    public static ManagedChannel createManagedChannel( String host, int port, String certChainFile) {
+    public static ManagedChannel createManagedChannel(String host, int port, boolean sslEnabled, String certChainFile) {
         NettyChannelBuilder builder = NettyChannelBuilder.forAddress(host, port);
-        if (certChainFile != null ) {
+        if (sslEnabled) {
             try {
+                if( certChainFile == null) throw new RuntimeException("SSL enabled but no certificate file specified");
+                File certFile = new File(certChainFile);
+                if( ! certFile.exists()) {
+                    throw new RuntimeException("Certificate file " + certChainFile + " does not exist");
+                }
                 SslContext sslContext = GrpcSslContexts.forClient()
                         .trustManager(new File(certChainFile))
                         .build();

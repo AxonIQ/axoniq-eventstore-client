@@ -40,6 +40,8 @@ public class EventStoreConfiguration {
     private String token;
     @Value("${axoniq.eventstore.ssl.certChainFile:#{null}}")
     private String certFile;
+    @Value("${axoniq.eventstore.ssl.enabled:false}")
+    private boolean sslEnabled;
     @Value("${axoniq.eventstore.connectionRetry:2500}")
     private long connectionRetry;
     @Value("${axoniq.eventstore.connectionRetryCount:5}")
@@ -110,6 +112,10 @@ public class EventStoreConfiguration {
 
     public EventCipher getEventCipher() {
         return eventCipher;
+    }
+
+    public boolean isSslEnabled() {
+        return sslEnabled;
     }
 
     public static class Builder {

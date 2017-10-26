@@ -49,7 +49,7 @@ public class EventStoreClient {
     public EventStoreClient(EventStoreConfiguration eventStoreConfiguration) {
         this.eventStoreConfiguration = eventStoreConfiguration;
         this.tokenAddingInterceptor = new TokenAddingInterceptor(eventStoreConfiguration.getToken());
-        this.channelManager = new ChannelManager(eventStoreConfiguration.getCertFile());
+        this.channelManager = new ChannelManager(eventStoreConfiguration.isSslEnabled(), eventStoreConfiguration.getCertFile());
         this.eventCipher = eventStoreConfiguration.getEventCipher();
     }
 

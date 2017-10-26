@@ -28,18 +28,20 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ChannelManager {
     private final Logger log = LoggerFactory.getLogger(ChannelManager.class);
+    private final boolean sslEnabled;
     private final String certChainFile;
 
     private Map<NodeKey, ManagedChannel> clusterManagerChannels = new ConcurrentHashMap<>();
 
-    public ChannelManager(String certChainFile) {
+    public ChannelManager(boolean sslEnabled, String certChainFile) {
+        this.sslEnabled = sslEnabled;
         this.certChainFile = certChainFile;
     }
 
     public ManagedChannel getChannel(NodeInfo nodeInfo) {
         NodeKey nodeKey = new NodeKey(nodeInfo);
         ManagedChannel channel = clusterManagerChannels.computeIfAbsent(nodeKey,
-                key -> ManagedChannelUtil.createManagedChannel(nodeInfo.getHostName(), nodeInfo.getGrpcPort(), certChainFile));
+                key -> ManagedChannelUtil.createManagedChannel(nodeInfo.getHostName(), nodeInfo.getGrpcPort(), sslEnabled, certChainFile));
         if(channel.isShutdown() || channel.isTerminated()) {
             log.debug("Connection to {} lost, reconnecting", nodeInfo.getGrpcPort());
             clusterManagerChannels.remove(nodeKey);
