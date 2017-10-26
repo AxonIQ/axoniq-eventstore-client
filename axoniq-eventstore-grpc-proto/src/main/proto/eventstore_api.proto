@@ -14,7 +14,7 @@ service EventStore {
     rpc AppendSnapshot (Event) returns (Confirmation) {
     }
 
-    // Retrieves the Eevents for a given aggregate. Results are streamed rather than returned at once.
+    // Retrieves the Events for a given aggregate. Results are streamed rather than returned at once.
     rpc ListAggregateEvents (GetAggregateEventsRequest) returns (stream Event) {
     }
 
