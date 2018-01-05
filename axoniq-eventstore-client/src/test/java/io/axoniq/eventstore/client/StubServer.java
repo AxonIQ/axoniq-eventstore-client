@@ -27,7 +27,7 @@ public class StubServer {
     public StubServer(int port) {
         server = NettyServerBuilder.forPort(port)
                                    .addService(new EventStoreImpl())
-                                   .addService(new ClusterImpl())
+                                   .addService(new PlatformService(port))
                                    .build();
     }
 

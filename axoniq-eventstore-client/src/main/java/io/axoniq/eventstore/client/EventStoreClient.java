@@ -21,6 +21,10 @@ import io.axoniq.eventstore.client.util.EventCipher;
 import io.axoniq.eventstore.client.util.EventStoreClientException;
 import io.axoniq.eventstore.client.util.GrpcExceptionParser;
 import io.axoniq.eventstore.grpc.*;
+import io.axoniq.platform.grpc.ClientIdentification;
+import io.axoniq.platform.grpc.NodeInfo;
+import io.axoniq.platform.grpc.PlatformInfo;
+import io.axoniq.platform.grpc.PlatformServiceGrpc;
 import io.grpc.Channel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -42,7 +46,7 @@ public class EventStoreClient {
     private final TokenAddingInterceptor tokenAddingInterceptor;
     private final EventCipher eventCipher;
 
-    private final AtomicReference<ClusterInfo> eventStoreServer = new AtomicReference<>();
+    private final AtomicReference<PlatformInfo> eventStoreServer = new AtomicReference<>();
     private final ChannelManager channelManager;
     private boolean shutdown;
 
@@ -62,9 +66,9 @@ public class EventStoreClient {
         return EventStoreGrpc.newStub(getChannelToEventStore()).withInterceptors(tokenAddingInterceptor);
     }
 
-    private ClusterInfo discoverEventStore() {
+    private PlatformInfo discoverEventStore() {
         eventStoreServer.set(null);
-        Broadcaster<ClusterInfo> b = new Broadcaster<>(eventStoreConfiguration.getServerNodes(), this::retrieveClusterInfo, this::nodeReceived);
+        Broadcaster<PlatformInfo> b = new Broadcaster<>(eventStoreConfiguration.getServerNodes(), this::retrieveClusterInfo, this::nodeReceived);
         try {
             b.broadcast(1, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
@@ -74,23 +78,23 @@ public class EventStoreClient {
         return eventStoreServer.get();
     }
 
-    private void nodeReceived(ClusterInfo node) {
-        logger.info("Received: {}:{}", node.getMaster().getHostName(), node.getMaster().getGrpcPort());
+    private void nodeReceived(PlatformInfo node) {
+        logger.info("Received: {}:{}", node.getPrimary().getHostName(), node.getPrimary().getGrpcPort());
         eventStoreServer.set(node);
     }
 
-    private void retrieveClusterInfo(NodeInfo nodeInfo, StreamObserver<ClusterInfo> streamObserver) {
+    private void retrieveClusterInfo(NodeInfo nodeInfo, StreamObserver<PlatformInfo> streamObserver) {
         Channel channel = channelManager.getChannel(nodeInfo);
-        ClusterGrpc.ClusterStub clusterManagerStub = ClusterGrpc.newStub(channel).withInterceptors(new TokenAddingInterceptor(eventStoreConfiguration.getToken()));
-        clusterManagerStub.retrieveClusterInfo(RetrieveClusterInfoRequest.newBuilder().build(), streamObserver);
+        PlatformServiceGrpc.PlatformServiceStub clusterManagerStub = PlatformServiceGrpc.newStub(channel).withInterceptors(new TokenAddingInterceptor(eventStoreConfiguration.getToken()));
+        clusterManagerStub.getPlatformServer(ClientIdentification.newBuilder().build(), streamObserver);
     }
 
     private Channel getChannelToEventStore() {
         if (shutdown) return null;
-        CompletableFuture<ClusterInfo> masterInfoCompletableFuture = new CompletableFuture<>();
+        CompletableFuture<PlatformInfo> masterInfoCompletableFuture = new CompletableFuture<>();
         getEventStoreAsync(eventStoreConfiguration.getConnectionRetryCount(), masterInfoCompletableFuture);
         try {
-            return channelManager.getChannel(masterInfoCompletableFuture.get().getMaster());
+            return channelManager.getChannel(masterInfoCompletableFuture.get().getPrimary());
         } catch( ExecutionException e) {
             throw (RuntimeException) e.getCause();
         } catch (InterruptedException e) {
@@ -98,8 +102,8 @@ public class EventStoreClient {
         }
     }
 
-    private void getEventStoreAsync(int retries, CompletableFuture<ClusterInfo> result) {
-        ClusterInfo currentEventStore = eventStoreServer.get();
+    private void getEventStoreAsync(int retries, CompletableFuture<PlatformInfo> result) {
+        PlatformInfo currentEventStore = eventStoreServer.get();
         if (currentEventStore != null) {
             result.complete(currentEventStore);
         } else {
@@ -117,7 +121,7 @@ public class EventStoreClient {
     }
 
     private void stopChannelToEventStore() {
-        ClusterInfo current = eventStoreServer.getAndSet(null);
+        PlatformInfo current = eventStoreServer.getAndSet(null);
         if (current != null) {
             logger.info("Shutting down gRPC channel");
             channelManager.shutdown(current);

@@ -15,7 +15,7 @@
 
 package io.axoniq.eventstore.client.util;
 
-import io.axoniq.eventstore.grpc.NodeInfo;
+import io.axoniq.platform.grpc.NodeInfo;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

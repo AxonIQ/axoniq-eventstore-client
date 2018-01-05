@@ -15,7 +15,7 @@
 
 package io.axoniq.eventstore.client.axon;
 
-import io.axoniq.eventstore.MetaDataValue;
+import io.axoniq.platform.MetaDataValue;
 import io.axoniq.eventstore.grpc.EventWithToken;
 import org.axonframework.eventhandling.TrackedEventMessage;
 import org.axonframework.eventsourcing.eventstore.*;

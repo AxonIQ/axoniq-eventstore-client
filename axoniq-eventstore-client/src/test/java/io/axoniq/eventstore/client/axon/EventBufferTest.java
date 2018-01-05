@@ -17,7 +17,7 @@ package io.axoniq.eventstore.client.axon;
 
 import com.google.protobuf.ByteString;
 import io.axoniq.eventstore.Event;
-import io.axoniq.eventstore.SerializedObject;
+import io.axoniq.platform.SerializedObject;
 import io.axoniq.eventstore.grpc.EventWithToken;
 import org.axonframework.eventhandling.TrackedEventMessage;
 import org.axonframework.eventsourcing.DomainEventMessage;

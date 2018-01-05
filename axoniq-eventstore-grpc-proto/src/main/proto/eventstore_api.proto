@@ -1,6 +1,6 @@
 syntax = "proto3";
 package io.axoniq.eventstore.grpc;
-import "messages.proto";
+import "eventstore_messages.proto";
 option java_multiple_files = true;
 
 
@@ -27,12 +27,6 @@ service EventStore {
     }
 }
 
-service Cluster {
-
-    rpc RetrieveClusterInfo (RetrieveClusterInfoRequest) returns (ClusterInfo) {
-    }
-}
-
 message EventWithToken {
     int64 token = 1;
     Event event = 2;
@@ -45,23 +39,6 @@ message ReadHighestSequenceNrRequest {
 
 message ReadHighestSequenceNrResponse {
     int64 to_sequence_nr = 1;
-}
-
-message ClusterInfo {
-
-    NodeInfo master = 1;
-
-}
-
-message NodeInfo {
-    string host_name = 1;
-    int32 grpc_port = 2;
-    int32 http_port = 3;
-    int32 version = 4;
-}
-
-message RetrieveClusterInfoRequest {
-
 }
 
 message Confirmation {
@@ -77,5 +54,8 @@ message GetAggregateEventsRequest {
 message GetEventsRequest {
     int64 tracking_token = 1;
     int64 number_of_permits = 2;
+    string client = 3;
+    string component = 4;
+    string processor = 5;
 }
 

@@ -17,7 +17,7 @@ package io.axoniq.eventstore.client.util;
 
 import com.google.protobuf.ByteString;
 import io.axoniq.eventstore.Event;
-import io.axoniq.eventstore.SerializedObject;
+import io.axoniq.platform.SerializedObject;
 import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;

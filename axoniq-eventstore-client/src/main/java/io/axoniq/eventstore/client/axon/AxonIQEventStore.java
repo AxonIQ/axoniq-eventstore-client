@@ -141,7 +141,7 @@ public class AxonIQEventStore extends AbstractEventStore {
             }
             SerializedObject<byte[]> serializedPayload = MessageSerializer.serializePayload(eventMessage, getSerializer(), byte[].class);
             builder.setMessageIdentifier(eventMessage.getIdentifier())
-                   .setPayload(io.axoniq.eventstore.SerializedObject.newBuilder()
+                   .setPayload(io.axoniq.platform.SerializedObject.newBuilder()
                                                                     .setType(serializedPayload.getType().getName())
                                                                     .setRevision(getOrDefault(serializedPayload.getType().getRevision(), ""))
                                                                     .setData(ByteString.copyFrom(serializedPayload.getData())))

@@ -15,8 +15,8 @@
 
 package io.axoniq.eventstore.client;
 
-import io.axoniq.eventstore.grpc.ClusterInfo;
-import io.axoniq.eventstore.grpc.NodeInfo;
+import io.axoniq.platform.grpc.NodeInfo;
+import io.axoniq.platform.grpc.PlatformInfo;
 import io.grpc.ManagedChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,8 +55,8 @@ public class ChannelManager {
         clusterManagerChannels.values().forEach(ManagedChannel::shutdownNow);
     }
 
-    public void shutdown(ClusterInfo nodeInfo) {
-        NodeKey nodeKey = new NodeKey(nodeInfo.getMaster());
+    public void shutdown(PlatformInfo nodeInfo) {
+        NodeKey nodeKey = new NodeKey(nodeInfo.getPrimary());
         ManagedChannel channel = clusterManagerChannels.remove(nodeKey);
         if( channel != null) {
             channel.shutdown();
