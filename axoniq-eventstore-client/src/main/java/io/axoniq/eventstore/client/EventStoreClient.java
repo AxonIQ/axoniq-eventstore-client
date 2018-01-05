@@ -26,6 +26,7 @@ import io.axoniq.platform.grpc.NodeInfo;
 import io.axoniq.platform.grpc.PlatformInfo;
 import io.axoniq.platform.grpc.PlatformServiceGrpc;
 import io.grpc.Channel;
+import io.grpc.ClientInterceptor;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -43,7 +44,7 @@ public class EventStoreClient {
 
     private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
     private final EventStoreConfiguration eventStoreConfiguration;
-    private final TokenAddingInterceptor tokenAddingInterceptor;
+    private final ClientInterceptor[] interceptors;
     private final EventCipher eventCipher;
 
     private final AtomicReference<PlatformInfo> eventStoreServer = new AtomicReference<>();
@@ -52,7 +53,10 @@ public class EventStoreClient {
 
     public EventStoreClient(EventStoreConfiguration eventStoreConfiguration) {
         this.eventStoreConfiguration = eventStoreConfiguration;
-        this.tokenAddingInterceptor = new TokenAddingInterceptor(eventStoreConfiguration.getToken());
+        this.interceptors = new ClientInterceptor[] {
+                new TokenAddingInterceptor(eventStoreConfiguration.getToken()),
+                new ContextAddingInterceptor(eventStoreConfiguration.getContext())
+        };
         this.channelManager = new ChannelManager(eventStoreConfiguration.isSslEnabled(), eventStoreConfiguration.getCertFile());
         this.eventCipher = eventStoreConfiguration.getEventCipher();
     }
@@ -63,7 +67,7 @@ public class EventStoreClient {
     }
 
     private EventStoreGrpc.EventStoreStub eventStoreStub() {
-        return EventStoreGrpc.newStub(getChannelToEventStore()).withInterceptors(tokenAddingInterceptor);
+        return EventStoreGrpc.newStub(getChannelToEventStore()).withInterceptors(interceptors);
     }
 
     private PlatformInfo discoverEventStore() {

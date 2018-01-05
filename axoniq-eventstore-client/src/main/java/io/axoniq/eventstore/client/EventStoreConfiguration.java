@@ -48,6 +48,8 @@ public class EventStoreConfiguration {
     private int connectionRetryCount;
 
     private EventCipher eventCipher = new EventCipher();
+    @Value("${axoniq.eventstore.context:#{null}}")
+    private String context;
 
     public EventStoreConfiguration() {
     }
@@ -118,6 +120,10 @@ public class EventStoreConfiguration {
         return sslEnabled;
     }
 
+    public String getContext() {
+        return context;
+    }
+
     public static class Builder {
         private EventStoreConfiguration instance;
 
@@ -138,6 +144,11 @@ public class EventStoreConfiguration {
 
         public Builder token(String token) {
             instance.token = token;
+            return this;
+        }
+
+        public Builder context(String context) {
+            instance.context = context;
             return this;
         }
 
