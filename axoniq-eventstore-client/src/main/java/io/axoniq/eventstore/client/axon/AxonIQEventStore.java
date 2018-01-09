@@ -24,6 +24,7 @@ import io.axoniq.eventstore.client.util.FlowControllingStreamObserver;
 import io.axoniq.eventstore.grpc.EventWithToken;
 import io.axoniq.eventstore.grpc.GetAggregateEventsRequest;
 import io.axoniq.eventstore.grpc.GetEventsRequest;
+import io.grpc.stub.StreamObserver;
 import org.axonframework.common.Assert;
 import org.axonframework.eventhandling.EventMessage;
 import org.axonframework.eventsourcing.DomainEventMessage;
@@ -194,24 +195,34 @@ public class AxonIQEventStore extends AbstractEventStore {
             EventBuffer consumer = new EventBuffer(upcasterChain, getSerializer());
 
             logger.info("open stream: {}", nextToken);
-            FlowControllingStreamObserver<GetEventsRequest, EventWithToken> observer = new FlowControllingStreamObserver<>(
-                    eventStoreClient::listEvents,
-                    (eventWithToken, getEventsRequestStreamObserver) -> {
-                        logger.debug("Received event with token: {}", eventWithToken.getToken());
-                        consumer.push(eventWithToken);
-                    },
-                    throwable -> {
-                        logger.error("Failed to receive events", throwable);
-                        consumer.fail(new EventStoreException("Error while reading events from the server", throwable));
-                    });
-            GetEventsRequest request = GetEventsRequest.newBuilder()
-                                                       .setTrackingToken(nextToken)
-                                                       .setNumberOfPermits(configuration.getInitialNrOfPermits())
-                                                       .build();
-            GetEventsRequest nextRequest = GetEventsRequest.newBuilder().setNumberOfPermits(configuration.getNrOfNewPermits()).build();
-            observer.start(request, nextRequest, configuration.getInitialNrOfPermits(), configuration.getNrOfNewPermits(), configuration.getNewPermitsThreshold());
+            StreamObserver<GetEventsRequest> requestStream = eventStoreClient.listEvents(new StreamObserver<EventWithToken>() {
+                @Override
+                public void onNext(EventWithToken eventWithToken) {
+                    logger.debug("Received event with token: {}", eventWithToken.getToken());
+                    consumer.push(eventWithToken);
+                }
 
-            consumer.registerCloseListener((eventConsumer) -> observer.stop());
+                @Override
+                public void onError(Throwable throwable) {
+                    logger.error("Failed to receive events", throwable);
+                    consumer.fail(new EventStoreException("Error while reading events from the server", throwable));
+                }
+
+                @Override
+                public void onCompleted() {
+
+                }
+            });
+            FlowControllingStreamObserver<GetEventsRequest> observer = new FlowControllingStreamObserver<>(
+                    requestStream, configuration, t-> GetEventsRequest.newBuilder().setNumberOfPermits(t).build(), t-> false);
+
+            GetEventsRequest request = GetEventsRequest.newBuilder()
+                    .setTrackingToken(nextToken)
+                    .setNumberOfPermits(configuration.getInitialNrOfPermits())
+                    .build();
+            observer.onNext(request);
+
+            consumer.registerCloseListener((eventConsumer) -> observer.onCompleted());
             consumer.registerConsumeListener(observer::markConsumed);
             return consumer;
         }

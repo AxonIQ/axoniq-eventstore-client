@@ -15,100 +15,74 @@
 
 package io.axoniq.eventstore.client.util;
 
+import io.axoniq.eventstore.client.EventStoreConfiguration;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  */
-public class FlowControllingStreamObserver<Request, Response> {
-    private final StartCommand<Request, Response> startCommand;
-    private final OnNext<Request, Response> onNext;
-    private final OnError onError;
-    private Logger logger = LoggerFactory.getLogger(FlowControllingStreamObserver.class);
-    private StreamObserver<Request> requestStream;
-    private Request nextRequest;
-    private AtomicInteger permitsLeft;
-    private int next;
-    private int threshold;
-    private boolean flowControl;
-    private boolean stopped;
+public class FlowControllingStreamObserver<T> implements StreamObserver<T> {
+    private final StreamObserver<T> wrappedStreamObserver;
 
-    public FlowControllingStreamObserver(StartCommand<Request, Response> startCommand, OnNext<Request, Response> onNext, OnError onError) {
-        this.startCommand = startCommand;
-        this.onNext = onNext;
-        this.onError = onError;
+    private final static Logger logger = LoggerFactory.getLogger(FlowControllingStreamObserver.class);
+    private final AtomicLong remainingPermits;
+    private final int newPermits;
+    private final EventStoreConfiguration configuration;
+    private final T newPermitsRequest;
+    private final Predicate<T> isConfirmationMessage;
+
+    public FlowControllingStreamObserver(StreamObserver<T> wrappedStreamObserver, EventStoreConfiguration configuration,
+                                         Function<Integer, T> requestWrapper, Predicate<T> isConfirmationMessage) {
+        this.wrappedStreamObserver = wrappedStreamObserver;
+        this.configuration = configuration;
+        this.remainingPermits = new AtomicLong(configuration.getInitialNrOfPermits()-configuration.getNewPermitsThreshold());
+        this.newPermits = configuration.getNrOfNewPermits();
+        this.newPermitsRequest = requestWrapper.apply(newPermits);
+        this.isConfirmationMessage = isConfirmationMessage;
+        wrappedStreamObserver.onNext(requestWrapper.apply(configuration.getInitialNrOfPermits()));
     }
 
-    public void stop() {
+    @Override
+    public void onNext(T t) {
+        synchronized (wrappedStreamObserver) {
+            wrappedStreamObserver.onNext(t);
+        }
+        logger.debug("Sending response to messaging platform, remaining permits: {}", remainingPermits.get());
+
+        if( isConfirmationMessage.test(t) ) {
+            markConsumed(1);
+        }
+    }
+
+    @Override
+    public void onError(Throwable throwable) {
+        wrappedStreamObserver.onError(throwable);
+    }
+
+    @Override
+    public void onCompleted() {
         logger.info("Observer stopped");
-        stopped = true;
         try {
-            requestStream.onCompleted();
-        } catch (Exception ex) {
+            wrappedStreamObserver.onCompleted();
+        } catch(Exception ignore) {
 
         }
     }
 
-    public void markConsumed(int i) {
-        if (flowControl) {
-            int currentCount = permitsLeft.addAndGet(-i);
-            if (currentCount <= threshold) {
-                requestStream.onNext(nextRequest);
-                permitsLeft.addAndGet(next);
+    public void markConsumed(Integer consumed) {
+        if( remainingPermits.updateAndGet(old -> old - consumed) == 0) {
+            remainingPermits.addAndGet(newPermits);
+            synchronized (wrappedStreamObserver) {
+                wrappedStreamObserver.onNext(newPermitsRequest);
             }
-        }
-    }
-
-    public void start(Request initialRequest, Request nextRequest, int initial, int next, int threshold) {
-        this.nextRequest = nextRequest;
-        this.permitsLeft = new AtomicInteger(initial);
-        this.next = next;
-        this.threshold = threshold;
-        this.flowControl = (nextRequest != null && initial > 0);
-
-        requestStream = startCommand.call(new FlowControlledResponseStream());
-        requestStream.onNext(initialRequest);
-    }
-
-    private void handleError(Throwable throwable) {
-        if (!stopped) {
-            onError.error(throwable);
-        }
-    }
-
-    public interface StartCommand<Request, Response> {
-        StreamObserver<Request> call(StreamObserver<Response> responseObserver);
-    }
-
-    public interface OnNext<Request, Response> {
-        void next(Response response, StreamObserver<Request> requestStreamObserver);
-    }
-
-
-    public interface OnError {
-        void error(Throwable throwable);
-    }
-
-    private class FlowControlledResponseStream implements StreamObserver<Response> {
-
-        @Override
-        public void onNext(Response response) {
-            onNext.next(response, requestStream);
+            logger.debug("Requesting new permits: {}", newPermitsRequest);
         }
 
-        @Override
-        public void onError(Throwable throwable) {
-            logger.error("Received error: {}", throwable.getMessage());
-            handleError(throwable);
-        }
-
-        @Override
-        public void onCompleted() {
-            logger.debug("OnCompleted");
-        }
     }
 
 }
