@@ -20,7 +20,7 @@
     <parent>
         <groupId>io.axoniq</groupId>
         <artifactId>axoniq-client</artifactId>
-        <version>1.0</version>
+        <version>1.0.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>axoniq-eventstore-client</artifactId>
