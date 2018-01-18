@@ -15,9 +15,9 @@
 
 package io.axoniq.axonclient;
 
-import io.axoniq.eventstore.client.EventStoreConfiguration;
-import io.axoniq.eventstore.client.axon.AxonIQEventStore;
-import io.axoniq.eventstore.performancetest.TestEvent;
+import io.axoniq.axondb.client.EventStoreConfiguration;
+import io.axoniq.axondb.client.axon.AxonIQEventStore;
+import io.axoniq.axondb.performancetest.TestEvent;
 import org.axonframework.eventsourcing.GenericDomainEventMessage;
 import org.axonframework.messaging.unitofwork.DefaultUnitOfWork;
 import org.axonframework.serialization.Serializer;
@@ -41,7 +41,7 @@ public class ClientNoSpring2 {
     private static Map<String, AtomicInteger> sequenceNumbers = new HashMap<>();
     private static String[] aggregateIds = new String[NR_AGGREGATES];
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         EventStoreConfiguration eventStoreConfiguration = EventStoreConfiguration.newBuilder("eventstore.axoniq.io:8123")
                                                                                  //.flowControl(10, 1, 0)
                                                                                  .token("4e173955-f887-465a-a7d8-2fdbca7e4e37")

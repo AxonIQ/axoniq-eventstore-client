@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-package io.axoniq.eventstore.performancetest;
+package io.axoniq.axondb.performancetest;
 
 /**
  * Author: marc

@@ -15,8 +15,8 @@
 
 package io.axoniq.axonclient;
 
-import io.axoniq.eventstore.client.EventStoreConfiguration;
-import io.axoniq.eventstore.client.axon.AxonIQEventStore;
+import io.axoniq.axondb.client.EventStoreConfiguration;
+import io.axoniq.axondb.client.axon.AxonIQEventStore;
 import org.axonframework.eventhandling.TrackedEventMessage;
 import org.axonframework.eventsourcing.GenericTrackedDomainEventMessage;
 import org.axonframework.eventsourcing.eventstore.TrackingEventStream;
