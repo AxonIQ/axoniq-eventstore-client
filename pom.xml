@@ -65,7 +65,7 @@
             - We use (in our default client artifact) a statically-linked version of Netty TcNative. This contains
               native libraries for BoringSSL (Google fork of OpenSSL).
         -->
-        <grpc.version>1.7.0</grpc.version>
+        <grpc.version>1.7.1</grpc.version>
         <netty.tcnative.version>2.0.6.Final</netty.tcnative.version>
     </properties>
 

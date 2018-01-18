@@ -15,7 +15,7 @@
 
 package io.axoniq.axondb.client.axon;
 
-import io.axoniq.axondb.client.EventStoreConfiguration;
+import io.axoniq.axondb.client.AxonDBConfiguration;
 import io.axoniq.axondb.client.StubServer;
 import org.axonframework.eventhandling.GenericEventMessage;
 import org.axonframework.eventsourcing.eventstore.TrackingEventStream;
@@ -34,19 +34,19 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 
-public class AxonIQEventStoreTest {
+public class AxonDBEventStoreTest {
 
     private StubServer server;
-    private AxonIQEventStore testSubject;
+    private AxonDBEventStore testSubject;
 
     @Before
     public void setUp() throws Exception {
         server = new StubServer(6123);
         server.start();
-        EventStoreConfiguration config = EventStoreConfiguration.newBuilder("localhost:6123")
+        AxonDBConfiguration config = AxonDBConfiguration.newBuilder("localhost:6123")
                                                                 .flowControl(2, 1, 1)
                                                                 .build();
-        testSubject = new AxonIQEventStore(config, new XStreamSerializer());
+        testSubject = new AxonDBEventStore(config, new XStreamSerializer());
     }
 
     @After

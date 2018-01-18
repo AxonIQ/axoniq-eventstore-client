@@ -26,7 +26,7 @@ import java.util.List;
 
 /**
  */
-public class EventStoreConfiguration {
+public class AxonDBConfiguration {
     @Value("${axoniq.axondb.servers:#{null}}")
     private String servers;
 
@@ -51,10 +51,10 @@ public class EventStoreConfiguration {
     @Value("${axoniq.axondb.context:#{null}}")
     private String context;
 
-    public EventStoreConfiguration() {
+    public AxonDBConfiguration() {
     }
 
-    public EventStoreConfiguration(EventCipher eventCipher) {
+    public AxonDBConfiguration(EventCipher eventCipher) {
         this.eventCipher = eventCipher;
     }
 
@@ -125,10 +125,10 @@ public class EventStoreConfiguration {
     }
 
     public static class Builder {
-        private EventStoreConfiguration instance;
+        private AxonDBConfiguration instance;
 
         public Builder(String servers) {
-            instance = new EventStoreConfiguration();
+            instance = new AxonDBConfiguration();
             instance.servers = servers;
             instance.initialNrOfPermits = 0;
             instance.nrOfNewPermits = 0;
@@ -175,7 +175,7 @@ public class EventStoreConfiguration {
             return this;
         }
 
-        public EventStoreConfiguration build() {
+        public AxonDBConfiguration build() {
             return instance;
         }
 

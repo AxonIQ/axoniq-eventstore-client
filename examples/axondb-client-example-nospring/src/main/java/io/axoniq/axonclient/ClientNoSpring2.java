@@ -15,8 +15,8 @@
 
 package io.axoniq.axonclient;
 
-import io.axoniq.axondb.client.EventStoreConfiguration;
-import io.axoniq.axondb.client.axon.AxonIQEventStore;
+import io.axoniq.axondb.client.AxonDBConfiguration;
+import io.axoniq.axondb.client.axon.AxonDBEventStore;
 import io.axoniq.axondb.performancetest.TestEvent;
 import org.axonframework.eventsourcing.GenericDomainEventMessage;
 import org.axonframework.messaging.unitofwork.DefaultUnitOfWork;
@@ -42,7 +42,7 @@ public class ClientNoSpring2 {
     private static String[] aggregateIds = new String[NR_AGGREGATES];
 
     public static void main(String[] args) {
-        EventStoreConfiguration eventStoreConfiguration = EventStoreConfiguration.newBuilder("eventstore.axoniq.io:8123")
+        AxonDBConfiguration axonDBConfiguration = AxonDBConfiguration.newBuilder("eventstore.axoniq.io:8123")
                                                                                  //.flowControl(10, 1, 0)
                                                                                  .token("4e173955-f887-465a-a7d8-2fdbca7e4e37")
                                                                                  .connectionRetry(3000, 30)
@@ -50,7 +50,7 @@ public class ClientNoSpring2 {
                                                                                  .build();
 
         Serializer serializer = new JacksonSerializer();
-        AxonIQEventStore eventStore = new AxonIQEventStore(eventStoreConfiguration, serializer);
+        AxonDBEventStore eventStore = new AxonDBEventStore(axonDBConfiguration, serializer);
 
         IntStream.range(0, NR_AGGREGATES).forEach(i -> {
             aggregateIds[i] = UUID.randomUUID().toString();
@@ -65,7 +65,7 @@ public class ClientNoSpring2 {
         System.out.println("Submitted " + NR_EVENTS + " events in " + (end - start) + "ms.");
     }
 
-    private static void generateMessages(AxonIQEventStore eventStore) {
+    private static void generateMessages(AxonDBEventStore eventStore) {
         int i = ThreadLocalRandom.current().nextInt(0, NR_AGGREGATES);
         String aggId = aggregateIds[i];
         AtomicInteger seqHolder = sequenceNumbers.get(aggId);

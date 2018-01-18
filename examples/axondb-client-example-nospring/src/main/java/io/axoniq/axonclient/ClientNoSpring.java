@@ -15,8 +15,8 @@
 
 package io.axoniq.axonclient;
 
-import io.axoniq.axondb.client.EventStoreConfiguration;
-import io.axoniq.axondb.client.axon.AxonIQEventStore;
+import io.axoniq.axondb.client.AxonDBConfiguration;
+import io.axoniq.axondb.client.axon.AxonDBEventStore;
 import org.axonframework.eventhandling.TrackedEventMessage;
 import org.axonframework.eventsourcing.GenericTrackedDomainEventMessage;
 import org.axonframework.eventsourcing.eventstore.TrackingEventStream;
@@ -33,7 +33,7 @@ public class ClientNoSpring {
 
     public static void main(String[] args) throws Exception {
         System.out.println(InetAddress.getLocalHost().getCanonicalHostName());
-        EventStoreConfiguration eventStoreConfiguration = EventStoreConfiguration
+        AxonDBConfiguration axonDBConfiguration = AxonDBConfiguration
                 .newBuilder("eventstore.axoniq.io:8123")
                 .flowControl(0, 10000, 1000)
                 .token("4e173955-f887-465a-a7d8-2fdbca7e4e37")
@@ -42,7 +42,7 @@ public class ClientNoSpring {
                 .build();
 
         Serializer serializer = new JacksonSerializer();
-        AxonIQEventStore eventStore = new AxonIQEventStore(eventStoreConfiguration, serializer);
+        AxonDBEventStore eventStore = new AxonDBEventStore(axonDBConfiguration, serializer);
         try {
             TrackingEventStream stream = eventStore.openStream(null);
             int count = 20;

@@ -16,8 +16,8 @@
 package com.example;
 
 import com.example.command.BankAccountAggregate;
-import io.axoniq.axondb.client.EventStoreConfiguration;
-import io.axoniq.axondb.client.axon.AxonIQEventStore;
+import io.axoniq.axondb.client.AxonDBConfiguration;
+import io.axoniq.axondb.client.axon.AxonDBEventStore;
 import org.axonframework.commandhandling.model.Repository;
 import org.axonframework.common.caching.Cache;
 import org.axonframework.common.caching.WeakReferenceCache;
@@ -48,13 +48,13 @@ public class AxoniqConfiguration {
     }
 
     @Bean(name = "eventBus")
-    public EventStore eventStore(EventStoreConfiguration eventStoreConfiguration, Serializer serializer) {
-        return new AxonIQEventStore(eventStoreConfiguration, serializer);
+    public EventStore eventStore(AxonDBConfiguration axonDBConfiguration, Serializer serializer) {
+        return new AxonDBEventStore(axonDBConfiguration, serializer);
     }
 
     @Bean
-    public EventStoreConfiguration eventStoreConfiguration() {
-        return new EventStoreConfiguration();
+    public AxonDBConfiguration axonDBConfiguration() {
+        return new AxonDBConfiguration();
     }
 
     @Bean

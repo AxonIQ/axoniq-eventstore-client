@@ -15,7 +15,7 @@
 
 package io.axoniq.axondb.client.util;
 
-import io.axoniq.axondb.client.EventStoreConfiguration;
+import io.axoniq.axondb.client.AxonDBConfiguration;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +35,7 @@ public class FlowControllingStreamObserver<T> implements StreamObserver<T> {
     private final T newPermitsRequest;
     private final Predicate<T> isConfirmationMessage;
 
-    public FlowControllingStreamObserver(StreamObserver<T> wrappedStreamObserver, EventStoreConfiguration configuration,
+    public FlowControllingStreamObserver(StreamObserver<T> wrappedStreamObserver, AxonDBConfiguration configuration,
                                          Function<Integer, T> requestWrapper, Predicate<T> isConfirmationMessage) {
         this.wrappedStreamObserver = wrappedStreamObserver;
         this.remainingPermits = new AtomicLong(configuration.getInitialNrOfPermits()-configuration.getNewPermitsThreshold());

@@ -39,11 +39,11 @@ import java.util.stream.Stream;
 
 /**
  */
-public class EventStoreClient {
-    private final Logger logger = LoggerFactory.getLogger(EventStoreClient.class);
+public class AxonDBClient {
+    private final Logger logger = LoggerFactory.getLogger(AxonDBClient.class);
 
     private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
-    private final EventStoreConfiguration eventStoreConfiguration;
+    private final AxonDBConfiguration eventStoreConfiguration;
     private final ClientInterceptor[] interceptors;
     private final EventCipher eventCipher;
 
@@ -51,7 +51,7 @@ public class EventStoreClient {
     private final ChannelManager channelManager;
     private boolean shutdown;
 
-    public EventStoreClient(EventStoreConfiguration eventStoreConfiguration) {
+    public AxonDBClient(AxonDBConfiguration eventStoreConfiguration) {
         this.eventStoreConfiguration = eventStoreConfiguration;
         this.interceptors = new ClientInterceptor[] {
                 new TokenAddingInterceptor(eventStoreConfiguration.getToken()),

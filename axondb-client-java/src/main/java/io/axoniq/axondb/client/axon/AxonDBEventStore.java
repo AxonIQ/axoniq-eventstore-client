@@ -18,8 +18,8 @@ package io.axoniq.axondb.client.axon;
 import com.google.protobuf.ByteString;
 import io.axoniq.axondb.Event;
 import io.axoniq.axondb.client.AppendEventTransaction;
-import io.axoniq.axondb.client.EventStoreClient;
-import io.axoniq.axondb.client.EventStoreConfiguration;
+import io.axoniq.axondb.client.AxonDBClient;
+import io.axoniq.axondb.client.AxonDBConfiguration;
 import io.axoniq.axondb.client.util.FlowControllingStreamObserver;
 import io.axoniq.axondb.grpc.EventWithToken;
 import io.axoniq.axondb.grpc.GetAggregateEventsRequest;
@@ -52,9 +52,9 @@ import static org.axonframework.common.ObjectUtils.getOrDefault;
  * @author Marc Gathier
  * @author Allard Buijze
  */
-public class AxonIQEventStore extends AbstractEventStore {
+public class AxonDBEventStore extends AbstractEventStore {
 
-    private static final Logger logger = LoggerFactory.getLogger(AxonIQEventStore.class);
+    private static final Logger logger = LoggerFactory.getLogger(AxonDBEventStore.class);
 
     /**
      * Initialize the Event Store using given {@code configuration} and given {@code serializer}.
@@ -64,7 +64,7 @@ public class AxonIQEventStore extends AbstractEventStore {
      * @param configuration The configuration describing the servers to connect with and how to manage flow control
      * @param serializer    The serializer to serialize Event payloads with
      */
-    public AxonIQEventStore(EventStoreConfiguration configuration, Serializer serializer) {
+    public AxonDBEventStore(AxonDBConfiguration configuration, Serializer serializer) {
         this(configuration, serializer, NoOpEventUpcaster.INSTANCE);
     }
 
@@ -77,8 +77,8 @@ public class AxonIQEventStore extends AbstractEventStore {
      * @param serializer    The serializer to serialize Event payloads with
      * @param upcasterChain The upcaster to modify received Event representations with
      */
-    public AxonIQEventStore(EventStoreConfiguration configuration, Serializer serializer, EventUpcaster upcasterChain) {
-        super(new AxonIQEventStorageEngine(serializer, upcasterChain, configuration, new EventStoreClient(configuration)));
+    public AxonDBEventStore(AxonDBConfiguration configuration, Serializer serializer, EventUpcaster upcasterChain) {
+        super(new AxonIQEventStorageEngine(serializer, upcasterChain, configuration, new AxonDBClient(configuration)));
     }
 
     @Override
@@ -97,14 +97,14 @@ public class AxonIQEventStore extends AbstractEventStore {
         private final String APPEND_EVENT_TRANSACTION = this + "/APPEND_EVENT_TRANSACTION";
 
         private final EventUpcaster upcasterChain;
-        private final EventStoreConfiguration configuration;
-        private final EventStoreClient eventStoreClient;
+        private final AxonDBConfiguration configuration;
+        private final AxonDBClient eventStoreClient;
         private final GrpcMetaDataConverter converter;
 
         private AxonIQEventStorageEngine(Serializer serializer,
                                          EventUpcaster upcasterChain,
-                                         EventStoreConfiguration configuration,
-                                         EventStoreClient eventStoreClient) {
+                                         AxonDBConfiguration configuration,
+                                         AxonDBClient eventStoreClient) {
             super(serializer, upcasterChain, null);
             this.upcasterChain = upcasterChain;
             this.configuration = configuration;
