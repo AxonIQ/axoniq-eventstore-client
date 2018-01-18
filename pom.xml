@@ -19,7 +19,7 @@
 
     <groupId>io.axoniq</groupId>
     <artifactId>axoniq-client-parent</artifactId>
-    <version>1.0</version>
+    <version>1.0.1-SNAPSHOT</version>
 
     <packaging>pom</packaging>
 
@@ -194,7 +194,7 @@
         <connection>scm:git:https://github.com/AxonIQ/axoniq-eventstore-client.git</connection>
         <developerConnection>scm:git:https://github.com/AxonIQ/axoniq-eventstore-client.git</developerConnection>
         <url>https://github.com/AxonIQ/axoniq-eventstore-client</url>
-        <tag>axoniq-client-parent-1.0</tag>
+        <tag>master</tag>
     </scm>
 
     <developers>
