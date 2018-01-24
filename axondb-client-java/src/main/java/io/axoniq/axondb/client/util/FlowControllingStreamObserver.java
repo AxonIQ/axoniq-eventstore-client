@@ -42,7 +42,6 @@ public class FlowControllingStreamObserver<T> implements StreamObserver<T> {
         this.newPermits = configuration.getNrOfNewPermits();
         this.newPermitsRequest = requestWrapper.apply(newPermits);
         this.isConfirmationMessage = isConfirmationMessage;
-        wrappedStreamObserver.onNext(requestWrapper.apply(configuration.getInitialNrOfPermits()));
     }
 
     @Override
