@@ -249,4 +249,25 @@ public class AxonDBClient {
         }
     }
 
+    public StreamObserver<QueryEventsRequest> query(StreamObserver<QueryEventsResponse> responseStreamObserver) {
+        StreamObserver<QueryEventsResponse> wrappedStreamObserver = new StreamObserver<QueryEventsResponse>() {
+            @Override
+            public void onNext(QueryEventsResponse eventWithToken) {
+                responseStreamObserver.onNext(eventWithToken);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+                checkConnectionException(throwable);
+                responseStreamObserver.onError(GrpcExceptionParser.parse(throwable));
+            }
+
+            @Override
+            public void onCompleted() {
+                responseStreamObserver.onCompleted();
+
+            }
+        };
+        return eventStoreStub().queryEvents(wrappedStreamObserver);
+    }
 }

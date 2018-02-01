@@ -63,11 +63,11 @@ public class FlowControllingStreamObserver<T> implements StreamObserver<T> {
 
     @Override
     public void onCompleted() {
-        logger.info("Observer stopped");
+        logger.debug("Observer stopped");
         try {
             wrappedStreamObserver.onCompleted();
         } catch(Exception ignore) {
-
+            logger.info("Observer stopped: {}", ignore.getMessage());
         }
     }
 

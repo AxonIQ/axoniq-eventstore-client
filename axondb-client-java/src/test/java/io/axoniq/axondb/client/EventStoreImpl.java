@@ -15,7 +15,9 @@
 
 package io.axoniq.axondb.client;
 
+import com.google.common.collect.Lists;
 import io.axoniq.axondb.Event;
+import io.axoniq.axondb.QueryValue;
 import io.axoniq.axondb.grpc.*;
 import io.grpc.stub.StreamObserver;
 
@@ -64,6 +66,52 @@ public class EventStoreImpl extends EventStoreGrpc.EventStoreImplBase {
         events.stream().filter(e -> e.getAggregateIdentifier().equals(request.getAggregateId()))
               .forEach(responseObserver::onNext);
         responseObserver.onCompleted();
+    }
+
+    @Override
+    public StreamObserver<QueryEventsRequest> queryEvents(StreamObserver<QueryEventsResponse> responseObserver) {
+        return new StreamObserver<QueryEventsRequest>() {
+            @Override
+            public void onNext(QueryEventsRequest queryEventsRequest) {
+                switch( queryEventsRequest.getQuery()) {
+                    case "":
+                        List<String> columns = Lists.newArrayList("col1", "col2", "col3", "col4", "col5");
+                        responseObserver.onNext(QueryEventsResponse.newBuilder()
+                                .setColumns(ColumnsResponse.newBuilder().addAllColumn(columns).build())
+                                .build());
+
+                        responseObserver.onNext(QueryEventsResponse.newBuilder()
+                                .setRow(RowResponse.newBuilder()
+                                        .putValues("col1", QueryValue.newBuilder().setTextValue("Value1").build())
+                                        .putValues("col2", QueryValue.newBuilder().setDoubleValue(10.0).build())
+                                        .putValues("col3", QueryValue.newBuilder().setBooleanValue(true).build())
+                                        .putValues("col4", QueryValue.newBuilder().setNumberValue(90).build())
+                                        .build())
+                                .build());
+
+                        responseObserver.onNext(QueryEventsResponse.newBuilder()
+                                .setFilesCompleted(Confirmation.newBuilder().setSuccess(true).build())
+                                .build());
+
+                        if(! queryEventsRequest.getLiveEvents()) responseObserver.onCompleted();
+                        break;
+
+                    case "invalidQuery":
+                        responseObserver.onError(new RuntimeException("Invalid query"));
+                        break;
+                }
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+
+            }
+
+            @Override
+            public void onCompleted() {
+
+            }
+        };
     }
 
     @Override

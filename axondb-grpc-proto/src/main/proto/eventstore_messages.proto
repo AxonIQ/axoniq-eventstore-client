@@ -17,3 +17,11 @@ message Event {
     map<string, io.axoniq.platform.MetaDataValue> meta_data = 7;
 }
 
+message QueryValue {
+    oneof data {
+        string text_value = 1;
+        sint64 number_value = 2;
+        bool boolean_value = 3;
+        double double_value = 4;
+    }
+}

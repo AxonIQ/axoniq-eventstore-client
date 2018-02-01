@@ -19,6 +19,7 @@ import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 public class StubServer {
 
@@ -36,7 +37,6 @@ public class StubServer {
     }
 
     public void shutdown() throws InterruptedException {
-        server.shutdown();
-        server.awaitTermination();
+        server.shutdown().awaitTermination(100, TimeUnit.MILLISECONDS);
     }
 }
