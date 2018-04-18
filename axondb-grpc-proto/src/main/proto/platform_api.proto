@@ -14,6 +14,8 @@ service PlatformService {
 message PlatformInboundInstruction {
     oneof request {
         ClientIdentification register = 1;
+        Application application = 10;
+        User user = 11;
     }
 }
 
@@ -21,7 +23,6 @@ message PlatformOutboundInstruction {
     oneof request {
         NodeInfo node_notification = 1;
         RequestReconnect request_reconnect = 3;
-        RequestReleaseTracker request_release_tracker = 4;
     }
 }
 
@@ -46,5 +47,32 @@ message NodeInfo {
 message ClientIdentification {
     string client_name = 1;
     string component_name = 2;
+}
+
+message Application {
+    string name = 1;
+    string description = 2;
+    string hashed_token = 3;
+    repeated ApplicationRole roles = 4;
+    Action action = 5;
+}
+
+message User {
+    string name = 1;
+    string password = 3;
+    repeated string roles = 4;
+    Action action = 5;
+}
+
+message ApplicationRole {
+    string name = 1;
+    int64 end_date = 2;
+    string context = 3;
+}
+
+enum Action {
+    MERGE = 0;
+    DELETE = 1;
+    RENEW = 2;
 }
 
