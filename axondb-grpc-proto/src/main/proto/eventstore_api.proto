@@ -1,6 +1,8 @@
 syntax = "proto3";
 package io.axoniq.axondb.grpc;
 import "eventstore_messages.proto";
+import "common_messages.proto";
+
 option java_multiple_files = true;
 
 
@@ -30,7 +32,28 @@ service EventStore {
     // client
     rpc QueryEvents (stream QueryEventsRequest) returns (stream QueryEventsResponse) {
     }
+}
 
+service TokenStore {
+    rpc StoreToken(TokenWithProcessorSegment) returns (Confirmation) {}
+    rpc FetchToken(ProcessorSegment) returns (Token) {}
+    rpc ExtendClaim(ProcessorSegment) returns (Confirmation) {}
+    rpc ReleaseClaim(ProcessorSegment) returns (Confirmation) {}
+}
+
+message ProcessorSegment {
+    string processor = 1;
+    int32 segment = 2;
+    string owner = 3;
+}
+
+message TokenWithProcessorSegment {
+    Token token = 1;
+    ProcessorSegment segment = 2;
+}
+
+message Token {
+    io.axoniq.platform.SerializedObject token = 1;
 }
 
 message EventWithToken {

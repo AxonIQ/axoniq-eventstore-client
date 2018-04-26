@@ -15,6 +15,7 @@
 
 package io.axoniq.axondb.client;
 
+import com.google.protobuf.ByteString;
 import io.axoniq.axondb.Event;
 import io.axoniq.axondb.client.util.Broadcaster;
 import io.axoniq.axondb.client.util.EventCipher;
@@ -30,6 +31,7 @@ import io.grpc.ClientInterceptor;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import org.axonframework.serialization.SerializedObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,6 +70,10 @@ public class AxonDBClient {
 
     private EventStoreGrpc.EventStoreStub eventStoreStub() {
         return EventStoreGrpc.newStub(getChannelToEventStore()).withInterceptors(interceptors);
+    }
+
+    private TokenStoreGrpc.TokenStoreStub tokenStoreStub() {
+        return TokenStoreGrpc.newStub(getChannelToEventStore()).withInterceptors(interceptors);
     }
 
     private PlatformInfo discoverEventStore() {
@@ -269,5 +275,37 @@ public class AxonDBClient {
             }
         };
         return eventStoreStub().queryEvents(wrappedStreamObserver);
+    }
+
+    public Future<Void> storeToken(SerializedObject<byte[]> serialize, String processorName, int segment) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        TokenWithProcessorSegment request = TokenWithProcessorSegment.newBuilder()
+                                                                     .setSegment(ProcessorSegment.newBuilder()
+                                                                                                 .setProcessor(processorName)
+                                                                                                 .setSegment(segment)
+                                                                                                 .build())
+                                                                     .setToken(Token.newBuilder().setToken(io.axoniq.platform.SerializedObject.newBuilder()
+                                                                                                                                              .setData(ByteString
+                                                                                                                                                               .copyFrom(serialize.getData()))
+                                                                                                                                              .setType(serialize.getType().getName())
+                                                                                                                                              .build()))
+                                                                     .build();
+        tokenStoreStub().storeToken(request, new StreamObserver<Confirmation>() {
+            @Override
+            public void onNext(Confirmation confirmation) {
+                future.complete(null);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onCompleted() {
+
+            }
+        });
+        return future;
     }
 }
