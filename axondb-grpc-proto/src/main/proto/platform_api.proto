@@ -16,6 +16,7 @@ message PlatformInboundInstruction {
         ClientIdentification register = 1;
         Application application = 10;
         User user = 11;
+        ContextUpdate context = 12;
     }
 }
 
@@ -77,3 +78,15 @@ enum Action {
     RENEW = 2;
 }
 
+message ContextUpdate {
+    string name = 1;
+    repeated string nodes = 3;
+    ContextAction action = 4;
+}
+
+enum ContextAction {
+    MERGE_CONTEXT = 0;
+    DELETE_CONTEXT = 1;
+    ADD_NODES = 2;
+    DELETE_NODES = 3;
+}
