@@ -21,7 +21,20 @@ import io.axoniq.axondb.client.util.Broadcaster;
 import io.axoniq.axondb.client.util.EventCipher;
 import io.axoniq.axondb.client.util.EventStoreClientException;
 import io.axoniq.axondb.client.util.GrpcExceptionParser;
-import io.axoniq.axondb.grpc.*;
+import io.axoniq.axondb.grpc.Confirmation;
+import io.axoniq.axondb.grpc.EventStoreGrpc;
+import io.axoniq.axondb.grpc.EventWithToken;
+import io.axoniq.axondb.grpc.FetchSegmentsRequest;
+import io.axoniq.axondb.grpc.GetAggregateEventsRequest;
+import io.axoniq.axondb.grpc.GetEventsRequest;
+import io.axoniq.axondb.grpc.InitializeTokenSegment;
+import io.axoniq.axondb.grpc.ProcessorSegment;
+import io.axoniq.axondb.grpc.QueryEventsRequest;
+import io.axoniq.axondb.grpc.QueryEventsResponse;
+import io.axoniq.axondb.grpc.Segments;
+import io.axoniq.axondb.grpc.Token;
+import io.axoniq.axondb.grpc.TokenStoreGrpc;
+import io.axoniq.axondb.grpc.TokenWithProcessorSegment;
 import io.axoniq.platform.grpc.ClientIdentification;
 import io.axoniq.platform.grpc.NodeInfo;
 import io.axoniq.platform.grpc.PlatformInfo;
@@ -35,7 +48,13 @@ import org.axonframework.serialization.SerializedObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.*;
+import java.lang.management.ManagementFactory;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
@@ -52,6 +71,7 @@ public class AxonDBClient {
     private final AtomicReference<PlatformInfo> eventStoreServer = new AtomicReference<>();
     private final ChannelManager channelManager;
     private boolean shutdown;
+    private final String clientId;
 
     public AxonDBClient(AxonDBConfiguration eventStoreConfiguration) {
         this.eventStoreConfiguration = eventStoreConfiguration;
@@ -61,6 +81,7 @@ public class AxonDBClient {
         };
         this.channelManager = new ChannelManager(eventStoreConfiguration.isSslEnabled(), eventStoreConfiguration.getCertFile());
         this.eventCipher = eventStoreConfiguration.getEventCipher();
+        this.clientId = ManagementFactory.getRuntimeMXBean().getName();
     }
 
     public void shutdown() {
@@ -283,6 +304,7 @@ public class AxonDBClient {
                                                                      .setSegment(ProcessorSegment.newBuilder()
                                                                                                  .setProcessor(processorName)
                                                                                                  .setSegment(segment)
+                                                                                                 .setOwner(clientId)
                                                                                                  .build())
                                                                      .setToken(Token.newBuilder().setToken(io.axoniq.platform.SerializedObject.newBuilder()
                                                                                                                                               .setData(ByteString
@@ -290,10 +312,21 @@ public class AxonDBClient {
                                                                                                                                               .setType(serialize.getType().getName())
                                                                                                                                               .build()))
                                                                      .build();
-        tokenStoreStub().storeToken(request, new StreamObserver<Confirmation>() {
+        tokenStoreStub().storeToken(request, new ConfirmingStreamObserver(future));
+        return future;
+    }
+
+    public CompletableFuture<io.axoniq.platform.SerializedObject> fetchToken(String processorName, int segment) {
+        CompletableFuture<io.axoniq.platform.SerializedObject> future = new CompletableFuture<>();
+        ProcessorSegment request = ProcessorSegment.newBuilder()
+                                                   .setProcessor(processorName)
+                                                   .setSegment(segment)
+                                                   .setOwner(clientId)
+                                                   .build();
+        tokenStoreStub().fetchToken(request, new StreamObserver<Token>() {
             @Override
-            public void onNext(Confirmation confirmation) {
-                future.complete(null);
+            public void onNext(Token token) {
+                future.complete(token.hasToken() ? token.getToken() : null);
             }
 
             @Override
@@ -307,5 +340,86 @@ public class AxonDBClient {
             }
         });
         return future;
+    }
+
+    public Future<Void> initializeTokenSegments(String processorName, int segmentCount) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        InitializeTokenSegment request = InitializeTokenSegment.newBuilder()
+                                                                                                 .setProcessor(processorName)
+                                                                                                 .build();
+
+        tokenStoreStub().initialize(request, new ConfirmingStreamObserver(future));
+        return future;
+    }
+
+    public Future<Void> releaseClaim(String processorName, int segment) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        ProcessorSegment request = ProcessorSegment.newBuilder()
+                                                   .setProcessor(processorName)
+                                                   .setOwner(clientId)
+                                                   .setSegment(segment)
+                                                   .build();
+
+        tokenStoreStub().releaseClaim(request, new ConfirmingStreamObserver(future));
+        return future;
+    }
+
+    public Future<int[]> fetchSegments(String processorName) {
+        CompletableFuture<int[]> future = new CompletableFuture<>();
+        FetchSegmentsRequest request = FetchSegmentsRequest.newBuilder().setProcessor(processorName).build();
+        tokenStoreStub().fetchSegments(request, new StreamObserver<Segments>(){
+
+            @Override
+            public void onNext(Segments o) {
+                future.complete(o.getSegmentList().stream().mapToInt(a -> a).toArray());
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onCompleted() {
+
+            }
+        });
+        return future;
+    }
+
+    public Future<Void> extendClaim(String processorName, int segment) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        ProcessorSegment request = ProcessorSegment.newBuilder()
+                                                   .setProcessor(processorName)
+                                                   .setOwner(clientId)
+                                                   .setSegment(segment)
+                                                   .build();
+
+        tokenStoreStub().extendClaim(request, new ConfirmingStreamObserver(future));
+        return future;
+    }
+
+    private class ConfirmingStreamObserver implements StreamObserver<Confirmation> {
+
+        private final CompletableFuture<Void> future;
+
+        public ConfirmingStreamObserver(
+                CompletableFuture<Void> future) {
+            this.future = future;
+        }
+
+        @Override
+        public void onNext(Confirmation confirmation) {
+            future.complete(null);
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            future.completeExceptionally(throwable);
+        }
+
+        @Override
+        public void onCompleted() {
+        }
     }
 }

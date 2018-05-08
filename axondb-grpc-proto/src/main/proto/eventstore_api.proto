@@ -35,11 +35,28 @@ service EventStore {
 }
 
 service TokenStore {
+    rpc Initialize(InitializeTokenSegment) returns (Confirmation) {}
+    rpc FetchSegments(FetchSegmentsRequest) returns (Segments) {}
     rpc StoreToken(TokenWithProcessorSegment) returns (Confirmation) {}
     rpc FetchToken(ProcessorSegment) returns (Token) {}
     rpc ExtendClaim(ProcessorSegment) returns (Confirmation) {}
     rpc ReleaseClaim(ProcessorSegment) returns (Confirmation) {}
+
 }
+
+message InitializeTokenSegment {
+    string processor = 1;
+    int32 segmentCount = 2;
+}
+
+message FetchSegmentsRequest {
+    string processor = 1;
+}
+
+message Segments {
+    repeated int32 segment = 1;
+}
+
 
 message ProcessorSegment {
     string processor = 1;

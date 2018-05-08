@@ -18,16 +18,21 @@ package com.example;
 import com.example.command.BankAccountAggregate;
 import io.axoniq.axondb.client.AxonDBConfiguration;
 import io.axoniq.axondb.client.axon.AxonDBEventStore;
+import io.axoniq.axondb.client.axon.AxonDBTokenStore;
 import org.axonframework.commandhandling.model.Repository;
 import org.axonframework.common.caching.Cache;
 import org.axonframework.common.caching.WeakReferenceCache;
 import org.axonframework.common.transaction.TransactionManager;
 import org.axonframework.config.EventHandlingConfiguration;
-import org.axonframework.eventsourcing.*;
+import org.axonframework.eventhandling.tokenstore.TokenStore;
+import org.axonframework.eventsourcing.CachingEventSourcingRepository;
+import org.axonframework.eventsourcing.EventCountSnapshotTriggerDefinition;
+import org.axonframework.eventsourcing.GenericAggregateFactory;
+import org.axonframework.eventsourcing.SnapshotTriggerDefinition;
+import org.axonframework.eventsourcing.Snapshotter;
 import org.axonframework.eventsourcing.eventstore.EventStore;
 import org.axonframework.messaging.annotation.ParameterResolverFactory;
 import org.axonframework.serialization.Serializer;
-import org.axonframework.serialization.json.JacksonSerializer;
 import org.axonframework.spring.eventsourcing.SpringAggregateSnapshotter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -79,7 +84,8 @@ public class AxoniqConfiguration {
     }
 
     @Bean
-    public Serializer serializer() {
-        return new JacksonSerializer();
+    public TokenStore tokenStore(AxonDBConfiguration axonDBConfiguration, Serializer serializer) {
+        return new AxonDBTokenStore(axonDBConfiguration, serializer);
     }
+
 }

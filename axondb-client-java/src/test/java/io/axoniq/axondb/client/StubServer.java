@@ -17,6 +17,7 @@ package io.axoniq.axondb.client;
 
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
+import org.axonframework.serialization.SerializedObject;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -24,11 +25,13 @@ import java.util.concurrent.TimeUnit;
 public class StubServer {
 
     private final Server server;
+    private final TokenStoreImpl tokenStore;
 
     public StubServer(int port) {
+        tokenStore = new TokenStoreImpl();
         server = NettyServerBuilder.forPort(port)
                                    .addService(new EventStoreImpl())
-                                   .addService(new TokenStoreImpl())
+                                   .addService(tokenStore)
                                    .addService(new PlatformService(port))
                                    .build();
     }
@@ -39,5 +42,17 @@ public class StubServer {
 
     public void shutdown() throws InterruptedException {
         server.shutdown().awaitTermination(100, TimeUnit.MILLISECONDS);
+    }
+
+    public void storeToken(SerializedObject<byte[]> axonSerializedToken, String processorName, int segment) {
+        tokenStore.putToken(axonSerializedToken, processorName, segment);
+    }
+
+    public void claim(String processorName, int segment, String owner) {
+        tokenStore.claim(processorName, segment, owner);
+    }
+
+    public TokenStoreImpl.TokenClaim getToken(String processorName, int segment) {
+        return tokenStore.getToken(processorName, segment);
     }
 }
