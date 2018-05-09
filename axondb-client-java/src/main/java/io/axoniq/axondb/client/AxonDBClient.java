@@ -331,6 +331,7 @@ public class AxonDBClient {
 
             @Override
             public void onError(Throwable throwable) {
+                checkConnectionException(throwable);
                 future.completeExceptionally(throwable);
             }
 
@@ -376,6 +377,7 @@ public class AxonDBClient {
 
             @Override
             public void onError(Throwable throwable) {
+                checkConnectionException(throwable);
                 future.completeExceptionally(throwable);
             }
 
@@ -415,6 +417,7 @@ public class AxonDBClient {
 
         @Override
         public void onError(Throwable throwable) {
+            checkConnectionException(throwable);
             future.completeExceptionally(throwable);
         }
 

@@ -25,3 +25,21 @@ message QueryValue {
         double double_value = 4;
     }
 }
+
+
+message ProcessorSegment {
+    string processor = 1;
+    int32 segment = 2;
+    string owner = 3;
+}
+
+message TokenWithProcessorSegment {
+    Token token = 1;
+    ProcessorSegment segment = 2;
+    int64 timestamp = 3;
+}
+
+message Token {
+    io.axoniq.platform.SerializedObject token = 1;
+}
+

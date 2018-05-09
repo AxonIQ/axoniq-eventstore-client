@@ -19,7 +19,7 @@ spring:
 
 axoniq:
   axondb:
-    servers: localhost:8001
+    servers: localhost:8123,localhost:9123,localhost:9124
     token:  4e173955-f887-465a-a7d8-2fdbca7e4e37
     connectionRetryCount: 10
     flowControl:

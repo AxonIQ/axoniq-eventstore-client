@@ -58,21 +58,6 @@ message Segments {
 }
 
 
-message ProcessorSegment {
-    string processor = 1;
-    int32 segment = 2;
-    string owner = 3;
-}
-
-message TokenWithProcessorSegment {
-    Token token = 1;
-    ProcessorSegment segment = 2;
-}
-
-message Token {
-    io.axoniq.platform.SerializedObject token = 1;
-}
-
 message EventWithToken {
     int64 token = 1;
     Event event = 2;
