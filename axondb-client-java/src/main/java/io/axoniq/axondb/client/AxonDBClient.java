@@ -22,8 +22,11 @@ import io.axoniq.axondb.client.util.EventStoreClientException;
 import io.axoniq.axondb.client.util.GrpcExceptionParser;
 import io.axoniq.axondb.grpc.*;
 import io.axoniq.platform.grpc.ClientIdentification;
+import io.axoniq.platform.grpc.HeartbeatResponse;
 import io.axoniq.platform.grpc.NodeInfo;
+import io.axoniq.platform.grpc.PlatformInboundInstruction;
 import io.axoniq.platform.grpc.PlatformInfo;
+import io.axoniq.platform.grpc.PlatformOutboundInstruction;
 import io.axoniq.platform.grpc.PlatformServiceGrpc;
 import io.grpc.Channel;
 import io.grpc.ClientInterceptor;
@@ -33,6 +36,7 @@ import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
@@ -50,6 +54,8 @@ public class AxonDBClient {
     private final AtomicReference<PlatformInfo> eventStoreServer = new AtomicReference<>();
     private final ChannelManager channelManager;
     private boolean shutdown;
+    private long lastHeartbeat;
+    private SendingStreamObserver<PlatformInboundInstruction> streamToAxonDB;
 
     public AxonDBClient(AxonDBConfiguration eventStoreConfiguration) {
         this.eventStoreConfiguration = eventStoreConfiguration;
@@ -59,6 +65,19 @@ public class AxonDBClient {
         };
         this.channelManager = new ChannelManager(eventStoreConfiguration.isSslEnabled(), eventStoreConfiguration.getCertFile());
         this.eventCipher = eventStoreConfiguration.getEventCipher();
+        executorService.scheduleAtFixedRate(this::checkConnection, eventStoreConfiguration.getCheckAliveDelay(),
+                                            eventStoreConfiguration.getCheckAliveInterval(),
+                                            TimeUnit.MILLISECONDS);
+    }
+
+    private void checkConnection() {
+        if( lastHeartbeat > 0 && eventStoreServer.get() != null) {
+            if( lastHeartbeat < System.currentTimeMillis() - eventStoreConfiguration.getHeartbeatTimeout()) {
+                logger.warn("Timeout on connection to AxonDB, trying to reconnect");
+                stopChannelToEventStore();
+            }
+        }
+
     }
 
     public void shutdown() {
@@ -89,7 +108,7 @@ public class AxonDBClient {
 
     private void retrieveClusterInfo(NodeInfo nodeInfo, StreamObserver<PlatformInfo> streamObserver) {
         Channel channel = channelManager.getChannel(nodeInfo);
-        PlatformServiceGrpc.PlatformServiceStub clusterManagerStub = PlatformServiceGrpc.newStub(channel).withInterceptors(new TokenAddingInterceptor(eventStoreConfiguration.getToken()));
+        PlatformServiceGrpc.PlatformServiceStub clusterManagerStub = PlatformServiceGrpc.newStub(channel).withInterceptors(interceptors);
         clusterManagerStub.getPlatformServer(ClientIdentification.newBuilder().build(), streamObserver);
     }
 
@@ -113,6 +132,7 @@ public class AxonDBClient {
         } else {
             currentEventStore = discoverEventStore();
             if (currentEventStore != null) {
+                openStream(currentEventStore);
                 result.complete(currentEventStore);
             } else {
                 if (retries > 0)
@@ -124,11 +144,52 @@ public class AxonDBClient {
         }
     }
 
+    private void openStream(PlatformInfo currentEventStore) {
+        lastHeartbeat = 0;
+        Channel channel = channelManager.getChannel(currentEventStore.getPrimary());
+        PlatformServiceGrpc.PlatformServiceStub platformService = PlatformServiceGrpc.newStub(channel).withInterceptors(
+                interceptors);
+        streamToAxonDB = new SendingStreamObserver<>(platformService.openStream(new StreamObserver<PlatformOutboundInstruction>() {
+            @Override
+            public void onNext(PlatformOutboundInstruction value) {
+                switch( value.getRequestCase()) {
+                    case HEARTBEAT:
+                        lastHeartbeat = System.currentTimeMillis();
+                        streamToAxonDB.onNext(PlatformInboundInstruction.newBuilder()
+                                                                        .setHeartbeat(HeartbeatResponse.newBuilder()
+                                                                                                       .setMessageId(UUID.randomUUID().toString())
+                                                                                                       .setCorrelatesTo(value.getHeartbeat().getMessageId())
+                                                                                                       .build())
+                                                                        .build());
+                        break;
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                stopChannelToEventStore();
+            }
+
+            @Override
+            public void onCompleted() {
+                stopChannelToEventStore();
+            }
+        }));
+    }
+
     private void stopChannelToEventStore() {
         PlatformInfo current = eventStoreServer.getAndSet(null);
         if (current != null) {
             logger.info("Shutting down gRPC channel");
             channelManager.shutdown(current);
+            closeStream();
+        }
+    }
+
+    private void closeStream() {
+        if( streamToAxonDB != null) {
+            streamToAxonDB.onCompleted();
+            streamToAxonDB = null;
         }
     }
 

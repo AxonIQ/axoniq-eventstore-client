@@ -22,12 +22,13 @@ axoniq:
     servers: localhost:8125, localhost:8124, eventstore.axoniq.io:8123
     token:  4e173955-f887-465a-a7d8-2fdbca7e4e37
     connectionRetryCount: 10
-    flowControl:
-      initialNrOfPermits: 10000
-      nrOfNewPermits: 10000
-      newPermitsThreshold: 1000
+    flow-control:
+      initial-nr-of-permits: 10000
+      new-permits-threshold: 1000
+      nr-of-new-permits: 10000
     ssl:
-      certChainFile: resources/axoniq-public.crt
+      cert-file: resources/axoniq-public.crt
+      ssl-enabled: false
 # default configuration
 #axoniq:
 #  eventstore:

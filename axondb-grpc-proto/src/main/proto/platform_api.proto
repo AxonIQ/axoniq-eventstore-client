@@ -17,6 +17,9 @@ message PlatformInboundInstruction {
         Application application = 10;
         User user = 11;
         ContextUpdate context = 12;
+        HeartbeatResponse heartbeat = 99;
+        UnknownRequest unknown_request = 100;
+
     }
 }
 
@@ -24,10 +27,26 @@ message PlatformOutboundInstruction {
     oneof request {
         NodeInfo node_notification = 1;
         RequestReconnect request_reconnect = 3;
+        HeartbeatRequest heartbeat = 99;
+        UnknownRequest unknown_request = 100;
     }
 }
 
 message RequestReconnect {
+}
+
+
+message HeartbeatRequest {
+    string message_id = 1;
+}
+
+message UnknownRequest {
+    int32 number = 1;
+}
+
+message HeartbeatResponse {
+    string message_id = 1;
+    string correlates_to = 2;
 }
 
 message RequestReleaseTracker {
