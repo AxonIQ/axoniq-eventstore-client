@@ -20,7 +20,13 @@ import io.axoniq.axondb.client.util.Broadcaster;
 import io.axoniq.axondb.client.util.EventCipher;
 import io.axoniq.axondb.client.util.EventStoreClientException;
 import io.axoniq.axondb.client.util.GrpcExceptionParser;
-import io.axoniq.axondb.grpc.*;
+import io.axoniq.axondb.grpc.Confirmation;
+import io.axoniq.axondb.grpc.EventStoreGrpc;
+import io.axoniq.axondb.grpc.EventWithToken;
+import io.axoniq.axondb.grpc.GetAggregateEventsRequest;
+import io.axoniq.axondb.grpc.GetEventsRequest;
+import io.axoniq.axondb.grpc.QueryEventsRequest;
+import io.axoniq.axondb.grpc.QueryEventsResponse;
 import io.axoniq.platform.grpc.ClientIdentification;
 import io.axoniq.platform.grpc.HeartbeatResponse;
 import io.axoniq.platform.grpc.NodeInfo;
@@ -36,8 +42,14 @@ import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
@@ -55,6 +67,7 @@ public class AxonDBClient {
     private final ChannelManager channelManager;
     private boolean shutdown;
     private long lastHeartbeat;
+    private final Map<UUID,Runnable> connectionCloseListeners = new ConcurrentHashMap<>();
     private SendingStreamObserver<PlatformInboundInstruction> streamToAxonDB;
 
     public AxonDBClient(AxonDBConfiguration eventStoreConfiguration) {
@@ -64,7 +77,7 @@ public class AxonDBClient {
                 new ContextAddingInterceptor(eventStoreConfiguration.getContext())
         };
         this.channelManager = new ChannelManager(eventStoreConfiguration.isSslEnabled(), eventStoreConfiguration.getCertFile());
-        this.eventCipher = eventStoreConfiguration.getEventCipher();
+        this.eventCipher = eventStoreConfiguration.eventCipher();
         executorService.scheduleAtFixedRate(this::checkConnection, eventStoreConfiguration.getCheckAliveDelay(),
                                             eventStoreConfiguration.getCheckAliveInterval(),
                                             TimeUnit.MILLISECONDS);
@@ -89,9 +102,10 @@ public class AxonDBClient {
         return EventStoreGrpc.newStub(getChannelToEventStore()).withInterceptors(interceptors);
     }
 
+
     private PlatformInfo discoverEventStore() {
         eventStoreServer.set(null);
-        Broadcaster<PlatformInfo> b = new Broadcaster<>(eventStoreConfiguration.getServerNodes(), this::retrieveClusterInfo, this::nodeReceived);
+        Broadcaster<PlatformInfo> b = new Broadcaster<>(eventStoreConfiguration.serverNodes(), this::retrieveClusterInfo, this::nodeReceived);
         try {
             b.broadcast(1, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
@@ -175,12 +189,18 @@ public class AxonDBClient {
                 stopChannelToEventStore();
             }
         }));
+
+        streamToAxonDB.onNext(PlatformInboundInstruction.newBuilder()
+                                                        .setRegister(ClientIdentification.getDefaultInstance())
+                                                        .build());
     }
 
     private void stopChannelToEventStore() {
         PlatformInfo current = eventStoreServer.getAndSet(null);
         if (current != null) {
             logger.info("Shutting down gRPC channel");
+            connectionCloseListeners.forEach((key,callback) -> callback.run());
+            connectionCloseListeners.clear();
             channelManager.shutdown(current);
             closeStream();
         }
@@ -238,6 +258,7 @@ public class AxonDBClient {
      * @return stream observer to send request messages to server
      */
     public StreamObserver<GetEventsRequest> listEvents(StreamObserver<EventWithToken> responseStreamObserver) {
+        UUID id = UUID.randomUUID();
         StreamObserver<EventWithToken> wrappedStreamObserver = new StreamObserver<EventWithToken>() {
             @Override
             public void onNext(EventWithToken eventWithToken) {
@@ -248,15 +269,23 @@ public class AxonDBClient {
             public void onError(Throwable throwable) {
                 checkConnectionException(throwable);
                 responseStreamObserver.onError(GrpcExceptionParser.parse(throwable));
+                connectionCloseListeners.remove(id);
             }
 
             @Override
             public void onCompleted() {
                 responseStreamObserver.onCompleted();
-
+                connectionCloseListeners.remove(id);
             }
         };
-        return eventStoreStub().listEvents(wrappedStreamObserver);
+        StreamObserver<GetEventsRequest> requestStream = eventStoreStub().listEvents(wrappedStreamObserver);
+        connectionCloseListeners.put(id, () -> {
+            try {
+                requestStream.onCompleted();
+            } catch(Exception ignore) {}
+            responseStreamObserver.onError(new RuntimeException("Connection to AxonDB lost"));
+        });
+        return requestStream;
     }
 
     public CompletableFuture<Confirmation> appendSnapshot(Event snapshot) {

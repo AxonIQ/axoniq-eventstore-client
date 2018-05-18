@@ -66,7 +66,7 @@ public class AxonDBConfiguration {
         return new Builder(servers);
     }
 
-    public List<NodeInfo> getServerNodes() {
+    public List<NodeInfo> serverNodes() {
         List<NodeInfo> serverNodes = new ArrayList<>();
         if (servers != null) {
             String[] serverArr = servers.split(",");
@@ -109,12 +109,12 @@ public class AxonDBConfiguration {
         return ssl.getCertFile();
     }
 
-    public EventCipher getEventCipher() {
+    public EventCipher eventCipher() {
         return eventCipher;
     }
 
     public boolean isSslEnabled() {
-        return ssl.isSslEnabled();
+        return ssl.isEnabled();
     }
 
     public String getContext() {
@@ -201,7 +201,7 @@ public class AxonDBConfiguration {
 
         public Builder ssl(String certificateFilePath) {
             instance.ssl.certFile = certificateFilePath;
-            instance.ssl.sslEnabled = certificateFilePath != null;
+            instance.ssl.enabled = certificateFilePath != null;
             return this;
         }
 
@@ -246,7 +246,7 @@ public class AxonDBConfiguration {
 
     public static class AxonSSL {
         private String certFile;
-        private boolean sslEnabled;
+        private boolean enabled;
 
         public String getCertFile() {
             return certFile;
@@ -256,12 +256,12 @@ public class AxonDBConfiguration {
             this.certFile = certFile;
         }
 
-        public boolean isSslEnabled() {
-            return sslEnabled;
+        public boolean isEnabled() {
+            return enabled;
         }
 
-        public void setSslEnabled(boolean sslEnabled) {
-            this.sslEnabled = sslEnabled;
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
         }
     }
 

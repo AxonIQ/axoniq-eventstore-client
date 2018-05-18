@@ -19,7 +19,7 @@ spring:
 
 axoniq:
   axondb:
-    servers: localhost:8125, localhost:8124, eventstore.axoniq.io:8123
+    servers: localhost:8001
     token:  4e173955-f887-465a-a7d8-2fdbca7e4e37
     connectionRetryCount: 10
     flow-control:
@@ -28,7 +28,7 @@ axoniq:
       nr-of-new-permits: 10000
     ssl:
       cert-file: resources/axoniq-public.crt
-      ssl-enabled: false
+      enabled: false
 # default configuration
 #axoniq:
 #  eventstore:
