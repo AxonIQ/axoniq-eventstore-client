@@ -20,14 +20,22 @@ import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyChannelBuilder;
 import io.netty.handler.ssl.SslContext;
 
-import javax.net.ssl.SSLException;
 import java.io.File;
+import java.util.concurrent.TimeUnit;
+import javax.net.ssl.SSLException;
 
 /**
  */
 public class ManagedChannelUtil {
-    public static ManagedChannel createManagedChannel(String host, int port, boolean sslEnabled, String certChainFile) {
+    public static ManagedChannel createManagedChannel(String host, int port, boolean sslEnabled, String certChainFile, long keepAliveTime, long keepAliveTimeout) {
         NettyChannelBuilder builder = NettyChannelBuilder.forAddress(host, port);
+
+        if( keepAliveTime > 0) {
+            builder.keepAliveTime(keepAliveTime, TimeUnit.MILLISECONDS)
+                   .keepAliveTimeout(keepAliveTimeout, TimeUnit.MILLISECONDS)
+                   .keepAliveWithoutCalls(true);
+        }
+
         if (sslEnabled) {
             try {
                 if( certChainFile == null) throw new RuntimeException("SSL enabled but no certificate file specified");

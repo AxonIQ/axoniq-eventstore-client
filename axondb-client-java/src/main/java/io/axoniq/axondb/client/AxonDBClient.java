@@ -28,7 +28,6 @@ import io.axoniq.axondb.grpc.GetEventsRequest;
 import io.axoniq.axondb.grpc.QueryEventsRequest;
 import io.axoniq.axondb.grpc.QueryEventsResponse;
 import io.axoniq.platform.grpc.ClientIdentification;
-import io.axoniq.platform.grpc.HeartbeatResponse;
 import io.axoniq.platform.grpc.NodeInfo;
 import io.axoniq.platform.grpc.PlatformInboundInstruction;
 import io.axoniq.platform.grpc.PlatformInfo;
@@ -66,7 +65,6 @@ public class AxonDBClient {
     private final AtomicReference<PlatformInfo> eventStoreServer = new AtomicReference<>();
     private final ChannelManager channelManager;
     private boolean shutdown;
-    private long lastHeartbeat;
     private final Map<UUID,Runnable> connectionCloseListeners = new ConcurrentHashMap<>();
     private SendingStreamObserver<PlatformInboundInstruction> streamToAxonDB;
 
@@ -76,21 +74,10 @@ public class AxonDBClient {
                 new TokenAddingInterceptor(eventStoreConfiguration.getToken()),
                 new ContextAddingInterceptor(eventStoreConfiguration.getContext())
         };
-        this.channelManager = new ChannelManager(eventStoreConfiguration.isSslEnabled(), eventStoreConfiguration.getCertFile());
+        this.channelManager = new ChannelManager(eventStoreConfiguration.isSslEnabled(), eventStoreConfiguration.getCertFile(),
+                                                 eventStoreConfiguration.getKeepAliveTime(),
+                                                 eventStoreConfiguration.getKeepAliveTimeout());
         this.eventCipher = eventStoreConfiguration.eventCipher();
-        executorService.scheduleAtFixedRate(this::checkConnection, eventStoreConfiguration.getCheckAliveDelay(),
-                                            eventStoreConfiguration.getCheckAliveInterval(),
-                                            TimeUnit.MILLISECONDS);
-    }
-
-    private void checkConnection() {
-        if( lastHeartbeat > 0 && eventStoreServer.get() != null) {
-            if( lastHeartbeat < System.currentTimeMillis() - eventStoreConfiguration.getHeartbeatTimeout()) {
-                logger.warn("Timeout on connection to AxonDB, trying to reconnect");
-                stopChannelToEventStore();
-            }
-        }
-
     }
 
     public void shutdown() {
@@ -159,24 +146,12 @@ public class AxonDBClient {
     }
 
     private void openStream(PlatformInfo currentEventStore) {
-        lastHeartbeat = 0;
         Channel channel = channelManager.getChannel(currentEventStore.getPrimary());
         PlatformServiceGrpc.PlatformServiceStub platformService = PlatformServiceGrpc.newStub(channel).withInterceptors(
                 interceptors);
         streamToAxonDB = new SendingStreamObserver<>(platformService.openStream(new StreamObserver<PlatformOutboundInstruction>() {
             @Override
             public void onNext(PlatformOutboundInstruction value) {
-                switch( value.getRequestCase()) {
-                    case HEARTBEAT:
-                        lastHeartbeat = System.currentTimeMillis();
-                        streamToAxonDB.onNext(PlatformInboundInstruction.newBuilder()
-                                                                        .setHeartbeat(HeartbeatResponse.newBuilder()
-                                                                                                       .setMessageId(UUID.randomUUID().toString())
-                                                                                                       .setCorrelatesTo(value.getHeartbeat().getMessageId())
-                                                                                                       .build())
-                                                                        .build());
-                        break;
-                }
             }
 
             @Override

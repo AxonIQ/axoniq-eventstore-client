@@ -32,16 +32,20 @@ public class ChannelManager {
     private final String certChainFile;
 
     private Map<NodeKey, ManagedChannel> clusterManagerChannels = new ConcurrentHashMap<>();
+    private final long keepAliveTimeout;
+    private final long keepAliveTime;
 
-    public ChannelManager(boolean sslEnabled, String certChainFile) {
+    public ChannelManager(boolean sslEnabled, String certChainFile, long keepAliveTime, long keepAliveTimeout) {
         this.sslEnabled = sslEnabled;
         this.certChainFile = certChainFile;
+        this.keepAliveTime = keepAliveTime;
+        this.keepAliveTimeout = keepAliveTimeout;
     }
 
     public ManagedChannel getChannel(NodeInfo nodeInfo) {
         NodeKey nodeKey = new NodeKey(nodeInfo);
         ManagedChannel channel = clusterManagerChannels.computeIfAbsent(nodeKey,
-                key -> ManagedChannelUtil.createManagedChannel(nodeInfo.getHostName(), nodeInfo.getGrpcPort(), sslEnabled, certChainFile));
+                key -> ManagedChannelUtil.createManagedChannel(nodeInfo.getHostName(), nodeInfo.getGrpcPort(), sslEnabled, certChainFile, keepAliveTime, keepAliveTimeout));
         if(channel.isShutdown() || channel.isTerminated()) {
             log.debug("Connection to {} lost, reconnecting", nodeInfo.getGrpcPort());
             clusterManagerChannels.remove(nodeKey);

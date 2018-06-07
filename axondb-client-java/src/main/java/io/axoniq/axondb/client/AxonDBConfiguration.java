@@ -43,10 +43,9 @@ public class AxonDBConfiguration {
 
     private EventCipher eventCipher = new EventCipher();
     private String context;
-    private long heartbeatTimeout = 5000;
 
-    private long checkAliveDelay = 1000;
-    private long checkAliveInterval = 1000;
+    private long keepAliveTime = 0;
+    private long keepAliveTimeout = 5000;
 
     public AxonDBConfiguration() {
     }
@@ -153,22 +152,6 @@ public class AxonDBConfiguration {
         this.context = context;
     }
 
-    public long getCheckAliveDelay() {
-        return checkAliveDelay;
-    }
-
-    public void setCheckAliveDelay(long checkAliveDelay) {
-        this.checkAliveDelay = checkAliveDelay;
-    }
-
-    public long getCheckAliveInterval() {
-        return checkAliveInterval;
-    }
-
-    public void setCheckAliveInterval(long checkAliveInterval) {
-        this.checkAliveInterval = checkAliveInterval;
-    }
-
     public String getServers() {
         return servers;
     }
@@ -181,12 +164,20 @@ public class AxonDBConfiguration {
         return ssl;
     }
 
-    public long getHeartbeatTimeout() {
-        return heartbeatTimeout;
+    public long getKeepAliveTime() {
+        return keepAliveTime;
     }
 
-    public void setHeartbeatTimeout(long heartbeatTimeout) {
-        this.heartbeatTimeout = heartbeatTimeout;
+    public void setKeepAliveTime(long keepAliveTime) {
+        this.keepAliveTime = keepAliveTime;
+    }
+
+    public long getKeepAliveTimeout() {
+        return keepAliveTimeout;
+    }
+
+    public void setKeepAliveTimeout(long keepAliveTimeout) {
+        this.keepAliveTimeout = keepAliveTimeout;
     }
 
     public static class Builder {
