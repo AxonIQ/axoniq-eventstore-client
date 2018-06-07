@@ -19,6 +19,7 @@ import io.axoniq.axondb.client.util.EventCipher;
 import io.axoniq.platform.grpc.NodeInfo;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.context.annotation.Configuration;
 
 import java.nio.charset.StandardCharsets;
@@ -31,21 +32,48 @@ import java.util.List;
 @Configuration
 @ConfigurationProperties(prefix = "axoniq.axondb")
 public class AxonDBConfiguration {
+    private static final int DEFAULT_GRPC_PORT = 8123;
+
+    /**
+     * Comma seperated list of AxonDB servers. Each element is hostname or hostname:grpcPort. When no grpcPort is specified, default port 8123 is used.
+     */
     private String servers;
 
+    @NestedConfigurationProperty
     private FlowControl flowControl = new FlowControl();
+
     private String token;
 
+    @NestedConfigurationProperty
     private AxonSSL ssl = new AxonSSL();
 
+    /**
+     * Wait time (in ms) between retrying to connect to AxonDB
+     */
     private long connectionRetry = 2500;
+    /**
+     * Number of retries when connect to AxonDB fails
+     */
     private int connectionRetryCount = 5;
 
     private EventCipher eventCipher = new EventCipher();
+    /**
+     * Bounded context that this AxonDB client connects to
+     */
     private String context;
 
+    /**
+     * Interval (in ms) for keep alive requests, 0 is keep-alive disabled
+     */
     private long keepAliveTime = 0;
+    /**
+     * Timeout (in ms) for keep alive requests
+     */
     private long keepAliveTimeout = 5000;
+    /**
+     * Timeout (in ms) to wait for response on commit
+     */
+    private long commitTimeout = 10000;
 
     public AxonDBConfiguration() {
     }
@@ -71,10 +99,16 @@ public class AxonDBConfiguration {
             String[] serverArr = servers.split(",");
             Arrays.stream(serverArr).forEach(serverString -> {
                 String[] hostPort = serverString.trim().split(":", 2);
-                NodeInfo nodeInfo = NodeInfo.newBuilder().setHostName(hostPort[0])
-                                            .setGrpcPort(Integer.valueOf(hostPort[1]))
-                                            .build();
-                serverNodes.add(nodeInfo);
+                if( hostPort.length == 1) {
+                    serverNodes.add(NodeInfo.newBuilder().setHostName(hostPort[0])
+                                            .setGrpcPort(DEFAULT_GRPC_PORT)
+                                            .build());
+                } else {
+                    NodeInfo nodeInfo = NodeInfo.newBuilder().setHostName(hostPort[0])
+                                                .setGrpcPort(Integer.valueOf(hostPort[1]))
+                                                .build();
+                    serverNodes.add(nodeInfo);
+                }
             });
         }
         return serverNodes;
@@ -180,6 +214,14 @@ public class AxonDBConfiguration {
         this.keepAliveTimeout = keepAliveTimeout;
     }
 
+    public long getCommitTimeout() {
+        return commitTimeout;
+    }
+
+    public void setCommitTimeout(long commitTimeout) {
+        this.commitTimeout = commitTimeout;
+    }
+
     public static class Builder {
         private AxonDBConfiguration instance;
 
@@ -262,7 +304,7 @@ public class AxonDBConfiguration {
     public static class FlowControl {
 
         private int initialNrOfPermits = 100000;
-        private int nrOfNewPermits = 90000;
+        private int nrOfNewPermits = 100000;
         private int newPermitsThreshold = 10000;
 
         public int getInitialNrOfPermits() {

@@ -31,11 +31,13 @@ import java.util.concurrent.TimeoutException;
 public class AppendEventTransaction {
     private final StreamObserver<Event> eventStreamObserver;
     private final CompletableFuture<Confirmation> observer;
+    private final long commitTimeout;
     private final EventCipher eventCipher;
 
-    public AppendEventTransaction(StreamObserver<Event> eventStreamObserver, CompletableFuture<Confirmation> observer, EventCipher eventCipher) {
+    public AppendEventTransaction(StreamObserver<Event> eventStreamObserver, CompletableFuture<Confirmation> observer, long commitTimeout, EventCipher eventCipher) {
         this.eventStreamObserver = eventStreamObserver;
         this.observer = observer;
+        this.commitTimeout = commitTimeout;
         this.eventCipher = eventCipher;
     }
 
@@ -46,7 +48,7 @@ public class AppendEventTransaction {
     public void commit()  {
         eventStreamObserver.onCompleted();
         try {
-            observer.get(10, TimeUnit.SECONDS);
+            observer.get(commitTimeout, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             throw AxonErrorMapping.convert(e);
         } catch (ExecutionException e) {

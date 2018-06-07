@@ -64,6 +64,7 @@ public class AxonDBClient {
 
     private final AtomicReference<PlatformInfo> eventStoreServer = new AtomicReference<>();
     private final ChannelManager channelManager;
+    private final long commitTimeout;
     private boolean shutdown;
     private final Map<UUID,Runnable> connectionCloseListeners = new ConcurrentHashMap<>();
     private SendingStreamObserver<PlatformInboundInstruction> streamToAxonDB;
@@ -78,6 +79,7 @@ public class AxonDBClient {
                                                  eventStoreConfiguration.getKeepAliveTime(),
                                                  eventStoreConfiguration.getKeepAliveTimeout());
         this.eventCipher = eventStoreConfiguration.eventCipher();
+        this.commitTimeout = eventStoreConfiguration.getCommitTimeout();
     }
 
     public void shutdown() {
@@ -305,7 +307,7 @@ public class AxonDBClient {
             public void onCompleted() {
                 // no-op: already
             }
-        }), futureConfirmation, eventCipher);
+        }), futureConfirmation, commitTimeout, eventCipher);
     }
 
     private void checkConnectionException(Throwable ex) {
