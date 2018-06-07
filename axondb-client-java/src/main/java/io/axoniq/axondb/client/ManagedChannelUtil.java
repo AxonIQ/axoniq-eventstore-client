@@ -51,7 +51,7 @@ public class ManagedChannelUtil {
                 throw new RuntimeException("Couldn't set up SSL context", e);
             }
         } else {
-            builder.usePlaintext(true);
+            builder.usePlaintext();
         }
         return builder.build();
     }
