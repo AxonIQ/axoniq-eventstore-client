@@ -25,8 +25,14 @@ import io.axoniq.axondb.grpc.EventStoreGrpc;
 import io.axoniq.axondb.grpc.EventWithToken;
 import io.axoniq.axondb.grpc.GetAggregateEventsRequest;
 import io.axoniq.axondb.grpc.GetEventsRequest;
+import io.axoniq.axondb.grpc.GetFirstTokenRequest;
+import io.axoniq.axondb.grpc.GetLastTokenRequest;
+import io.axoniq.axondb.grpc.GetTokenAtRequest;
 import io.axoniq.axondb.grpc.QueryEventsRequest;
 import io.axoniq.axondb.grpc.QueryEventsResponse;
+import io.axoniq.axondb.grpc.ReadHighestSequenceNrRequest;
+import io.axoniq.axondb.grpc.ReadHighestSequenceNrResponse;
+import io.axoniq.axondb.grpc.TrackingToken;
 import io.axoniq.platform.grpc.ClientIdentification;
 import io.axoniq.platform.grpc.NodeInfo;
 import io.axoniq.platform.grpc.PlatformInboundInstruction;
@@ -41,6 +47,7 @@ import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -268,46 +275,13 @@ public class AxonDBClient {
     public CompletableFuture<Confirmation> appendSnapshot(Event snapshot) {
 
         CompletableFuture<Confirmation> confirmationFuture = new CompletableFuture<>();
-        eventStoreStub().appendSnapshot(eventCipher.encrypt(snapshot), new StreamObserver<Confirmation>() {
-            @Override
-            public void onNext(Confirmation confirmation) {
-                confirmationFuture.complete(confirmation);
-            }
-
-            @Override
-            public void onError(Throwable throwable) {
-                checkConnectionException(throwable);
-                confirmationFuture.completeExceptionally(GrpcExceptionParser.parse(throwable));
-            }
-
-            @Override
-            public void onCompleted() {
-
-            }
-        });
-
+        eventStoreStub().appendSnapshot(eventCipher.encrypt(snapshot), new SingleResultStreamObserver<>(confirmationFuture));
         return confirmationFuture;
     }
 
     public AppendEventTransaction createAppendEventConnection() {
         CompletableFuture<Confirmation> futureConfirmation = new CompletableFuture<>();
-        return new AppendEventTransaction(eventStoreStub().appendEvent(new StreamObserver<Confirmation>() {
-            @Override
-            public void onNext(Confirmation confirmation) {
-                futureConfirmation.complete(confirmation);
-            }
-
-            @Override
-            public void onError(Throwable throwable) {
-                checkConnectionException(throwable);
-                futureConfirmation.completeExceptionally(GrpcExceptionParser.parse(throwable));
-            }
-
-            @Override
-            public void onCompleted() {
-                // no-op: already
-            }
-        }), futureConfirmation, commitTimeout, eventCipher);
+        return new AppendEventTransaction(eventStoreStub().appendEvent(new SingleResultStreamObserver<>(futureConfirmation)), futureConfirmation, commitTimeout, eventCipher);
     }
 
     private void checkConnectionException(Throwable ex) {
@@ -337,4 +311,57 @@ public class AxonDBClient {
         };
         return eventStoreStub().queryEvents(wrappedStreamObserver);
     }
+
+    public CompletableFuture<ReadHighestSequenceNrResponse> lastSequenceNumberFor(String aggregateIdentifier) {
+        CompletableFuture<ReadHighestSequenceNrResponse> completableFuture = new CompletableFuture<>();
+        eventStoreStub().readHighestSequenceNr(ReadHighestSequenceNrRequest.newBuilder()
+                                                                           .setAggregateId(aggregateIdentifier).build(),
+                                               new SingleResultStreamObserver<>(completableFuture));
+        return completableFuture;
+    }
+
+    public CompletableFuture<TrackingToken> getLastToken() {
+        CompletableFuture<TrackingToken> trackingTokenFuture = new CompletableFuture<>();
+        eventStoreStub().getLastToken(GetLastTokenRequest.getDefaultInstance(), new SingleResultStreamObserver<>(trackingTokenFuture));
+        return trackingTokenFuture;
+    }
+
+    public CompletableFuture<TrackingToken> getFirstToken() {
+        CompletableFuture<TrackingToken> trackingTokenFuture = new CompletableFuture<>();
+        eventStoreStub().getFirstToken(GetFirstTokenRequest.getDefaultInstance(), new SingleResultStreamObserver<>(trackingTokenFuture));
+        return trackingTokenFuture;
+    }
+
+    public CompletableFuture<TrackingToken> getTokenAt(Instant instant) {
+        CompletableFuture<TrackingToken> trackingTokenFuture = new CompletableFuture<>();
+        eventStoreStub().getTokenAt(GetTokenAtRequest.newBuilder()
+                                                     .setInstant(instant.toEpochMilli())
+                                                     .build(), new SingleResultStreamObserver<>(trackingTokenFuture));
+        return trackingTokenFuture;
+    }
+
+    private class SingleResultStreamObserver<T> implements StreamObserver<T> {
+        private final CompletableFuture<T> future;
+
+        private SingleResultStreamObserver(CompletableFuture<T> future) {
+            this.future = future;
+        }
+
+        @Override
+        public void onNext(T t) {
+            future.complete(t);
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            checkConnectionException(throwable);
+            future.completeExceptionally(GrpcExceptionParser.parse(throwable));
+        }
+
+        @Override
+        public void onCompleted() {
+            if( ! future.isDone()) future.completeExceptionally(new EventStoreClientException("AXONIQ-0001", "Async call completed before answer"));
+        }
+    }
+
 }

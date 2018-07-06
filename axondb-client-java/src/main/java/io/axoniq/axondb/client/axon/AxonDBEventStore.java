@@ -21,13 +21,26 @@ import io.axoniq.axondb.client.AppendEventTransaction;
 import io.axoniq.axondb.client.AxonDBClient;
 import io.axoniq.axondb.client.AxonDBConfiguration;
 import io.axoniq.axondb.client.util.FlowControllingStreamObserver;
-import io.axoniq.axondb.grpc.*;
+import io.axoniq.axondb.grpc.EventWithToken;
+import io.axoniq.axondb.grpc.GetAggregateEventsRequest;
+import io.axoniq.axondb.grpc.GetEventsRequest;
+import io.axoniq.axondb.grpc.QueryEventsRequest;
+import io.axoniq.axondb.grpc.QueryEventsResponse;
+import io.axoniq.axondb.grpc.ReadHighestSequenceNrResponse;
 import io.grpc.stub.StreamObserver;
 import org.axonframework.common.Assert;
 import org.axonframework.eventhandling.EventMessage;
 import org.axonframework.eventsourcing.DomainEventMessage;
 import org.axonframework.eventsourcing.GenericDomainEventMessage;
-import org.axonframework.eventsourcing.eventstore.*;
+import org.axonframework.eventsourcing.eventstore.AbstractEventStorageEngine;
+import org.axonframework.eventsourcing.eventstore.AbstractEventStore;
+import org.axonframework.eventsourcing.eventstore.DomainEventData;
+import org.axonframework.eventsourcing.eventstore.DomainEventStream;
+import org.axonframework.eventsourcing.eventstore.EventStoreException;
+import org.axonframework.eventsourcing.eventstore.GlobalSequenceTrackingToken;
+import org.axonframework.eventsourcing.eventstore.TrackedEventData;
+import org.axonframework.eventsourcing.eventstore.TrackingEventStream;
+import org.axonframework.eventsourcing.eventstore.TrackingToken;
 import org.axonframework.messaging.unitofwork.CurrentUnitOfWork;
 import org.axonframework.serialization.MessageSerializer;
 import org.axonframework.serialization.SerializedObject;
@@ -37,6 +50,7 @@ import org.axonframework.serialization.upcasting.event.NoOpEventUpcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -79,6 +93,18 @@ public class AxonDBEventStore extends AbstractEventStore {
         super(new AxonIQEventStorageEngine(serializer, upcasterChain, configuration, new AxonDBClient(configuration)));
     }
 
+    /**
+     * Initialize the Event Store using given {@code configuration}, {@code serializer} and {@code upcasterChain}
+     * Allows for different serializers for snapshots and events (requires AxonFramework version 3.3 or higer)
+     * @param configuration
+     * @param snapshotSerializer
+     * @param serializer
+     * @param upcasterChain
+     */
+    public AxonDBEventStore(AxonDBConfiguration configuration, Serializer snapshotSerializer, Serializer serializer, EventUpcaster upcasterChain) {
+        super(new AxonIQEventStorageEngine(snapshotSerializer, serializer, upcasterChain, configuration, new AxonDBClient(configuration)));
+    }
+
     @Override
     public TrackingEventStream openStream(TrackingToken trackingToken) {
         return storageEngine().openStream(trackingToken);
@@ -109,6 +135,18 @@ public class AxonDBEventStore extends AbstractEventStore {
                                          AxonDBConfiguration configuration,
                                          AxonDBClient eventStoreClient) {
             super(serializer, upcasterChain, null);
+            this.upcasterChain = upcasterChain;
+            this.configuration = configuration;
+            this.eventStoreClient = eventStoreClient;
+            this.converter = new GrpcMetaDataConverter(serializer);
+        }
+
+        private AxonIQEventStorageEngine(Serializer serializer,
+                                         Serializer eventSerializer,
+                                         EventUpcaster upcasterChain,
+                                         AxonDBConfiguration configuration,
+                                         AxonDBClient eventStoreClient) {
+            super(serializer, upcasterChain, null, eventSerializer, null);
             this.upcasterChain = upcasterChain;
             this.configuration = configuration;
             this.eventStoreClient = eventStoreClient;
@@ -269,6 +307,47 @@ public class AxonDBEventStore extends AbstractEventStore {
         @Override
         public DomainEventStream readEvents(String aggregateIdentifier) {
             return readEvents(aggregateIdentifier, ALLOW_SNAPSHOTS_MAGIC_VALUE);
+        }
+
+        @Override
+        public Optional<Long> lastSequenceNumberFor(String aggregateIdentifier) {
+            try {
+                ReadHighestSequenceNrResponse lastSequenceNr = eventStoreClient
+                        .lastSequenceNumberFor(aggregateIdentifier).get();
+                return lastSequenceNr.getToSequenceNr() < 0 ? Optional.empty() : Optional.of(lastSequenceNr.getToSequenceNr());
+            } catch (Throwable e) {
+                throw AxonErrorMapping.convert(e);
+            }
+        }
+
+        @Override
+        public TrackingToken createTailToken() {
+            try {
+                io.axoniq.axondb.grpc.TrackingToken token = eventStoreClient.getFirstToken().get();
+                return new GlobalSequenceTrackingToken(token.getToken()-1);
+            } catch (Throwable e) {
+                throw AxonErrorMapping.convert(e);
+            }
+        }
+
+        @Override
+        public TrackingToken createHeadToken() {
+            try {
+                io.axoniq.axondb.grpc.TrackingToken token = eventStoreClient.getLastToken().get();
+                return new GlobalSequenceTrackingToken(token.getToken());
+            } catch (Throwable e) {
+                throw AxonErrorMapping.convert(e);
+            }
+        }
+
+        @Override
+        public TrackingToken createTokenAt(Instant instant) {
+            try {
+                io.axoniq.axondb.grpc.TrackingToken token = eventStoreClient.getTokenAt(instant).get();
+                return new GlobalSequenceTrackingToken(token.getToken()-1);
+            } catch (Throwable e) {
+                throw AxonErrorMapping.convert(e);
+            }
         }
 
         @Override
