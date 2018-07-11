@@ -90,4 +90,8 @@ public class GrpcBackedDomainEventData implements DomainEventData<byte[]> {
                                             byte[].class, event.getPayload().getType(),
                                             "".equals(revision) ? null : revision);
     }
+
+    public boolean isSnapshot() {
+        return event.getSnapshot();
+    }
 }
