@@ -23,3 +23,7 @@ API extensions for AxonHub integration
    - Simplified servers property to use default port when omitted
    - Commit timeout configurable
    - Improved support for configuration properties in IDE when using spring-boot
+   
+### 1.3
+
+   - Implementation of new AxonFramework 3.3 operations

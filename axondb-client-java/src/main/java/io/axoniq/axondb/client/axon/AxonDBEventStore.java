@@ -324,6 +324,7 @@ public class AxonDBEventStore extends AbstractEventStore {
         public TrackingToken createTailToken() {
             try {
                 io.axoniq.axondb.grpc.TrackingToken token = eventStoreClient.getFirstToken().get();
+                if( token.getToken() < 0) return null;
                 return new GlobalSequenceTrackingToken(token.getToken()-1);
             } catch (Throwable e) {
                 throw AxonErrorMapping.convert(e);
@@ -344,6 +345,7 @@ public class AxonDBEventStore extends AbstractEventStore {
         public TrackingToken createTokenAt(Instant instant) {
             try {
                 io.axoniq.axondb.grpc.TrackingToken token = eventStoreClient.getTokenAt(instant).get();
+                if( token.getToken() < 0) return null;
                 return new GlobalSequenceTrackingToken(token.getToken()-1);
             } catch (Throwable e) {
                 throw AxonErrorMapping.convert(e);
