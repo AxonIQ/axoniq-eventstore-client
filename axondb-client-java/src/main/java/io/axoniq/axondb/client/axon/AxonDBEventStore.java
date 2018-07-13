@@ -53,8 +53,8 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.axonframework.common.ObjectUtils.getOrDefault;
@@ -137,7 +137,7 @@ public class AxonDBEventStore extends AbstractEventStore {
                                          AxonDBConfiguration configuration,
                                          AxonDBClient eventStoreClient) {
             super(serializer, upcasterChain, null);
-            this.upcasterChain = upcasterChain;
+            this.upcasterChain = getOrDefault(upcasterChain, NoOpEventUpcaster.INSTANCE);
             this.configuration = configuration;
             this.eventStoreClient = eventStoreClient;
             this.converter = new GrpcMetaDataConverter(serializer);
@@ -149,7 +149,7 @@ public class AxonDBEventStore extends AbstractEventStore {
                                          AxonDBConfiguration configuration,
                                          AxonDBClient eventStoreClient) {
             super(serializer, upcasterChain, null, eventSerializer, null);
-            this.upcasterChain = upcasterChain;
+            this.upcasterChain = getOrDefault(upcasterChain, NoOpEventUpcaster.INSTANCE);
             this.configuration = configuration;
             this.eventStoreClient = eventStoreClient;
             this.converter = new GrpcMetaDataConverter(serializer);
@@ -267,6 +267,7 @@ public class AxonDBEventStore extends AbstractEventStore {
             observer.onNext(request);
 
             consumer.registerCloseListener((eventConsumer) -> observer.onCompleted());
+//                                                   observer.onError( new RuntimeException("Closed by client")));
             consumer.registerConsumeListener(observer::markConsumed);
             return consumer;
         }
@@ -310,24 +311,22 @@ public class AxonDBEventStore extends AbstractEventStore {
         @Override
         public DomainEventStream readEvents(String aggregateIdentifier) {
             Stream<? extends DomainEventData<?>> input = this.readEventData(aggregateIdentifier, ALLOW_SNAPSHOTS_MAGIC_VALUE);
-            List<? extends DomainEventData<?>> eventDataList = input.collect(Collectors.toList());
-            if( startsWithSnapshot(eventDataList)) {
-                DomainEventData<?> snapshot = eventDataList.remove(0);
-                DomainEventStream stream =
-                        EventUtils.upcastAndDeserializeDomainEvents(Stream.of(snapshot), new GrpcMetaDataAwareSerializer(getSerializer()), upcasterChain, false);
-
-                return DomainEventStream.concat(stream,
-                                                EventUtils.upcastAndDeserializeDomainEvents(eventDataList.stream(), new GrpcMetaDataAwareSerializer(getEventSerializer()), this.upcasterChain, false));
-            }
-
-            return EventUtils.upcastAndDeserializeDomainEvents(eventDataList.stream(), new GrpcMetaDataAwareSerializer(this.getEventSerializer()), this.upcasterChain, false);
+            return DomainEventStream.of(input.map(this::upcastAndDeserializeDomainEvent).filter(Objects::nonNull));
         }
 
-        private boolean startsWithSnapshot(List<? extends DomainEventData<?>> eventDataList) {
-            if( eventDataList.isEmpty()) return false;
+        private  DomainEventMessage<?> upcastAndDeserializeDomainEvent(DomainEventData<?> domainEventData) {
+            DomainEventStream upcastedStream = EventUtils.upcastAndDeserializeDomainEvents(Stream.of(domainEventData),
+                                                                                                new GrpcMetaDataAwareSerializer(
+                                                                                                        isSnapshot(
+                                                                                                                domainEventData) ? getSerializer() : getEventSerializer()),
+                                                                                                upcasterChain,
+                                                                                                false);
+            return upcastedStream.hasNext() ? upcastedStream.next() : null;
+        }
 
-            if( eventDataList.get(0) instanceof GrpcBackedDomainEventData) {
-                GrpcBackedDomainEventData grpcBackedDomainEventData = (GrpcBackedDomainEventData)eventDataList.get(0);
+        private boolean isSnapshot(DomainEventData<?> domainEventData) {
+            if( domainEventData instanceof GrpcBackedDomainEventData) {
+                GrpcBackedDomainEventData grpcBackedDomainEventData = (GrpcBackedDomainEventData)domainEventData;
                 return grpcBackedDomainEventData.isSnapshot();
             }
             return false;
