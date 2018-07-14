@@ -43,6 +43,7 @@ import io.grpc.Channel;
 import io.grpc.ClientInterceptor;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -262,7 +263,7 @@ public class AxonDBClient {
                 connectionCloseListeners.remove(id);
             }
         };
-        StreamObserver<GetEventsRequest> requestStream = eventStoreStub().listEvents(wrappedStreamObserver);
+        StreamObserver<GetEventsRequest> requestStream = new CancelOnCompleteStreamObserver<>(eventStoreStub().listEvents(wrappedStreamObserver));
         connectionCloseListeners.put(id, () -> {
             try {
                 requestStream.onCompleted();
@@ -338,6 +339,29 @@ public class AxonDBClient {
                                                      .setInstant(instant.toEpochMilli())
                                                      .build(), new SingleResultStreamObserver<>(trackingTokenFuture));
         return trackingTokenFuture;
+    }
+
+    private class CancelOnCompleteStreamObserver<T> implements StreamObserver<T> {
+        private final ClientCallStreamObserver<T> requestStream;
+
+        private CancelOnCompleteStreamObserver(StreamObserver<T> requestStream) {
+            this.requestStream = (ClientCallStreamObserver<T>) requestStream;
+        }
+
+        @Override
+        public void onNext(T t) {
+            requestStream.onNext(t);
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            requestStream.onError(throwable);
+        }
+
+        @Override
+        public void onCompleted() {
+            requestStream.cancel("Request stream was closed", new EventStoreClientException("AXONIQ-0001", "Request stream was closed"));
+        }
     }
 
     private class SingleResultStreamObserver<T> implements StreamObserver<T> {
