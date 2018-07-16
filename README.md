@@ -27,3 +27,10 @@ API extensions for AxonHub integration
 ### 1.3
 
    - Implementation of new AxonFramework 3.3 operations
+   
+### 1.3.1
+
+- Fix for missing upcaster
+- Resolved high memory consumption in EventBuffer when event stream was closed by client
+- Performance improvement in readEvents
+   
