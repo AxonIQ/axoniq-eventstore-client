@@ -15,6 +15,7 @@
 
 package io.axoniq.axondb.client;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.axoniq.axondb.Event;
 import io.axoniq.axondb.client.util.Broadcaster;
 import io.axoniq.axondb.client.util.EventCipher;
@@ -64,7 +65,9 @@ import java.util.stream.Stream;
 public class AxonDBClient {
     private final Logger logger = LoggerFactory.getLogger(AxonDBClient.class);
 
-    private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
+    private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1,
+                                                                                              new ThreadFactoryBuilder()
+                                                                                                  .setDaemon(true).build());
     private final AxonDBConfiguration eventStoreConfiguration;
     private final ClientInterceptor[] interceptors;
     private final EventCipher eventCipher;
@@ -73,14 +76,14 @@ public class AxonDBClient {
     private final ChannelManager channelManager;
     private final long commitTimeout;
     private boolean shutdown;
-    private final Map<UUID,Runnable> connectionCloseListeners = new ConcurrentHashMap<>();
+    private final Map<UUID, Runnable> connectionCloseListeners = new ConcurrentHashMap<>();
     private SendingStreamObserver<PlatformInboundInstruction> streamToAxonDB;
 
     public AxonDBClient(AxonDBConfiguration eventStoreConfiguration) {
         this.eventStoreConfiguration = eventStoreConfiguration;
         this.interceptors = new ClientInterceptor[] {
-                new TokenAddingInterceptor(eventStoreConfiguration.getToken()),
-                new ContextAddingInterceptor(eventStoreConfiguration.getContext())
+            new TokenAddingInterceptor(eventStoreConfiguration.getToken()),
+            new ContextAddingInterceptor(eventStoreConfiguration.getContext())
         };
         this.channelManager = new ChannelManager(eventStoreConfiguration.isSslEnabled(), eventStoreConfiguration.getCertFile(),
                                                  eventStoreConfiguration.getKeepAliveTime(),
@@ -123,12 +126,14 @@ public class AxonDBClient {
     }
 
     private Channel getChannelToEventStore() {
-        if (shutdown) return null;
+        if (shutdown) {
+            return null;
+        }
         CompletableFuture<PlatformInfo> masterInfoCompletableFuture = new CompletableFuture<>();
         getEventStoreAsync(eventStoreConfiguration.getConnectionRetryCount(), masterInfoCompletableFuture);
         try {
             return channelManager.getChannel(masterInfoCompletableFuture.get().getPrimary());
-        } catch( ExecutionException e) {
+        } catch (ExecutionException e) {
             throw (RuntimeException) e.getCause();
         } catch (InterruptedException e) {
             throw new EventStoreClientException("AXONIQ-0001", e.getMessage(), e);
@@ -145,11 +150,12 @@ public class AxonDBClient {
                 openStream(currentEventStore);
                 result.complete(currentEventStore);
             } else {
-                if (retries > 0)
+                if (retries > 0) {
                     executorService.schedule(() -> getEventStoreAsync(retries - 1, result),
                                              eventStoreConfiguration.getConnectionRetry(), TimeUnit.MILLISECONDS);
-                else
+                } else {
                     result.completeExceptionally(new EventStoreClientException("AXONIQ-0001", "No available event store server"));
+                }
             }
         }
     }
@@ -157,7 +163,7 @@ public class AxonDBClient {
     private void openStream(PlatformInfo currentEventStore) {
         Channel channel = channelManager.getChannel(currentEventStore.getPrimary());
         PlatformServiceGrpc.PlatformServiceStub platformService = PlatformServiceGrpc.newStub(channel).withInterceptors(
-                interceptors);
+            interceptors);
         streamToAxonDB = new SendingStreamObserver<>(platformService.openStream(new StreamObserver<PlatformOutboundInstruction>() {
             @Override
             public void onNext(PlatformOutboundInstruction value) {
@@ -175,15 +181,15 @@ public class AxonDBClient {
         }));
 
         streamToAxonDB.onNext(PlatformInboundInstruction.newBuilder()
-                                                        .setRegister(ClientIdentification.getDefaultInstance())
-                                                        .build());
+                                  .setRegister(ClientIdentification.getDefaultInstance())
+                                  .build());
     }
 
     private void stopChannelToEventStore() {
         PlatformInfo current = eventStoreServer.getAndSet(null);
         if (current != null) {
             logger.info("Shutting down gRPC channel");
-            connectionCloseListeners.forEach((key,callback) -> callback.run());
+            connectionCloseListeners.forEach((key, callback) -> callback.run());
             connectionCloseListeners.clear();
             channelManager.shutdown(current);
             closeStream();
@@ -191,7 +197,7 @@ public class AxonDBClient {
     }
 
     private void closeStream() {
-        if( streamToAxonDB != null) {
+        if (streamToAxonDB != null) {
             streamToAxonDB.onCompleted();
             streamToAxonDB = null;
         }
@@ -237,7 +243,6 @@ public class AxonDBClient {
     }
 
     /**
-     *
      * @param responseStreamObserver: observer for messages from server
      * @return stream observer to send request messages to server
      */
@@ -266,7 +271,8 @@ public class AxonDBClient {
         connectionCloseListeners.put(id, () -> {
             try {
                 requestStream.onCompleted();
-            } catch(Exception ignore) {}
+            } catch (Exception ignore) {
+            }
             responseStreamObserver.onError(new RuntimeException("Connection to AxonDB lost"));
         });
         return requestStream;
@@ -281,7 +287,10 @@ public class AxonDBClient {
 
     public AppendEventTransaction createAppendEventConnection() {
         CompletableFuture<Confirmation> futureConfirmation = new CompletableFuture<>();
-        return new AppendEventTransaction(eventStoreStub().appendEvent(new SingleResultStreamObserver<>(futureConfirmation)), futureConfirmation, commitTimeout, eventCipher);
+        return new AppendEventTransaction(eventStoreStub().appendEvent(new SingleResultStreamObserver<>(futureConfirmation)),
+                                          futureConfirmation,
+                                          commitTimeout,
+                                          eventCipher);
     }
 
     private void checkConnectionException(Throwable ex) {
@@ -315,7 +324,7 @@ public class AxonDBClient {
     public CompletableFuture<ReadHighestSequenceNrResponse> lastSequenceNumberFor(String aggregateIdentifier) {
         CompletableFuture<ReadHighestSequenceNrResponse> completableFuture = new CompletableFuture<>();
         eventStoreStub().readHighestSequenceNr(ReadHighestSequenceNrRequest.newBuilder()
-                                                                           .setAggregateId(aggregateIdentifier).build(),
+                                                   .setAggregateId(aggregateIdentifier).build(),
                                                new SingleResultStreamObserver<>(completableFuture));
         return completableFuture;
     }
@@ -335,8 +344,8 @@ public class AxonDBClient {
     public CompletableFuture<TrackingToken> getTokenAt(Instant instant) {
         CompletableFuture<TrackingToken> trackingTokenFuture = new CompletableFuture<>();
         eventStoreStub().getTokenAt(GetTokenAtRequest.newBuilder()
-                                                     .setInstant(instant.toEpochMilli())
-                                                     .build(), new SingleResultStreamObserver<>(trackingTokenFuture));
+                                        .setInstant(instant.toEpochMilli())
+                                        .build(), new SingleResultStreamObserver<>(trackingTokenFuture));
         return trackingTokenFuture;
     }
 
@@ -360,7 +369,9 @@ public class AxonDBClient {
 
         @Override
         public void onCompleted() {
-            if( ! future.isDone()) future.completeExceptionally(new EventStoreClientException("AXONIQ-0001", "Async call completed before answer"));
+            if (!future.isDone()) {
+                future.completeExceptionally(new EventStoreClientException("AXONIQ-0001", "Async call completed before answer"));
+            }
         }
     }
 
