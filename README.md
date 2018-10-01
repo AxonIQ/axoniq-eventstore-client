@@ -34,3 +34,7 @@ API extensions for AxonHub integration
 - Resolved high memory consumption in EventBuffer when event stream was closed by client
 - Performance improvement in readEvents
    
+### 1.3.5
+
+- changed connect thread to daemon thread
+- aligned client version with latest server version
