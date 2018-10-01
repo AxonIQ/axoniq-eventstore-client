@@ -15,6 +15,7 @@
 
 package io.axoniq.axondb.client;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.axoniq.axondb.Event;
 import io.axoniq.axondb.client.util.Broadcaster;
 import io.axoniq.axondb.client.util.EventCipher;
@@ -64,7 +65,11 @@ import java.util.stream.Stream;
 public class AxonDBClient {
     private final Logger logger = LoggerFactory.getLogger(AxonDBClient.class);
 
-    private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
+    private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1,
+                                                                                              new ThreadFactoryBuilder()
+                                                                                                  .setDaemon(true)
+                                                                                                  .setNameFormat("axondbclient-pool-%d")
+                                                                                                  .build());
     private final AxonDBConfiguration eventStoreConfiguration;
     private final ClientInterceptor[] interceptors;
     private final EventCipher eventCipher;
