@@ -8,21 +8,21 @@ spring:
     hibernate:
       ddl-auto: update
   datasource:
-    url: jdbc:h2:~/bankdb
+    url: jdbc:h2:./bankdb
 
 axoniq:
   axondb:
     servers: localhost
-    token:  4e173955-f887-465a-a7d8-2fdbca7e4e37
+    token:  99999999-99999999999999
     connectionRetryCount: 10
-    flow-control:
-      initial-nr-of-permits: 10000
-      new-permits-threshold: 1000
-      nr-of-new-permits: 10000
+#    flow-control:
+#      initial-nr-of-permits: 10000
+#      new-permits-threshold: 1000
+#      nr-of-new-permits: 10000
     ssl:
       cert-file: resources/axoniq-public.crt
       enabled: false
-
+    keep-alive-time: 5000
 # Full authentication is required to access actuator endpoints since spring boot 1.5.1.RELEASE
 management:
   security:

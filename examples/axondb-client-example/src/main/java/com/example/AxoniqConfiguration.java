@@ -78,8 +78,4 @@ public class AxoniqConfiguration {
         return new CachingEventSourcingRepository<>(new GenericAggregateFactory<>(BankAccountAggregate.class), eventStore, cache, snapshotTriggerDefinition);
     }
 
-    @Bean
-    public Serializer serializer() {
-        return new JacksonSerializer();
-    }
 }
