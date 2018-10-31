@@ -18,16 +18,19 @@ package com.example;
 import com.example.command.BankAccountAggregate;
 import io.axoniq.axondb.client.AxonDBConfiguration;
 import io.axoniq.axondb.client.axon.AxonDBEventStore;
-import org.axonframework.commandhandling.model.Repository;
 import org.axonframework.common.caching.Cache;
 import org.axonframework.common.caching.WeakReferenceCache;
 import org.axonframework.common.transaction.TransactionManager;
-import org.axonframework.config.EventHandlingConfiguration;
-import org.axonframework.eventsourcing.*;
+import org.axonframework.config.EventProcessingConfigurer;
+import org.axonframework.eventsourcing.CachingEventSourcingRepository;
+import org.axonframework.eventsourcing.EventCountSnapshotTriggerDefinition;
+import org.axonframework.eventsourcing.GenericAggregateFactory;
+import org.axonframework.eventsourcing.SnapshotTriggerDefinition;
+import org.axonframework.eventsourcing.Snapshotter;
 import org.axonframework.eventsourcing.eventstore.EventStore;
 import org.axonframework.messaging.annotation.ParameterResolverFactory;
+import org.axonframework.modelling.command.Repository;
 import org.axonframework.serialization.Serializer;
-import org.axonframework.serialization.json.JacksonSerializer;
 import org.axonframework.spring.eventsourcing.SpringAggregateSnapshotter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -43,8 +46,8 @@ import java.util.concurrent.Executors;
 public class AxoniqConfiguration {
 
     @Autowired
-    public void config(EventHandlingConfiguration eventHandlingConfiguration) {
-        eventHandlingConfiguration.registerTrackingProcessor("MyCounters");
+    public void config(EventProcessingConfigurer eventProcessingConfigurer) {
+        eventProcessingConfigurer.registerTrackingEventProcessor("MyCounters");
     }
 
     @Bean(name = "eventBus")
@@ -60,7 +63,12 @@ public class AxoniqConfiguration {
     @Bean
     public SpringAggregateSnapshotter snapshotter(ParameterResolverFactory parameterResolverFactory, EventStore eventStore, TransactionManager transactionManager) {
         Executor executor = Executors.newSingleThreadExecutor(); //Or any other executor of course
-        return new SpringAggregateSnapshotter(eventStore, parameterResolverFactory, executor, transactionManager);
+        return SpringAggregateSnapshotter.builder()
+            .eventStore(eventStore)
+            .parameterResolverFactory(parameterResolverFactory)
+            .executor(executor)
+            .transactionManager(transactionManager)
+            .build();
     }
 
     @Bean
@@ -69,13 +77,18 @@ public class AxoniqConfiguration {
     }
 
     @Bean
-    public Cache cache(){
+    public Cache cache() {
         return new WeakReferenceCache();
     }
 
     @Bean
     public Repository<BankAccountAggregate> bankAccountAggregateRepository(EventStore eventStore, SnapshotTriggerDefinition snapshotTriggerDefinition, Cache cache) {
-        return new CachingEventSourcingRepository<>(new GenericAggregateFactory<>(BankAccountAggregate.class), eventStore, cache, snapshotTriggerDefinition);
+        return CachingEventSourcingRepository.builder(BankAccountAggregate.class)
+            .aggregateFactory(new GenericAggregateFactory<>(BankAccountAggregate.class))
+            .eventStore(eventStore)
+            .cache(cache)
+            .snapshotTriggerDefinition(snapshotTriggerDefinition)
+            .build();
     }
 
 }

@@ -17,9 +17,9 @@ package io.axoniq.axonclient;
 
 import io.axoniq.axondb.client.AxonDBConfiguration;
 import io.axoniq.axondb.client.axon.AxonDBEventStore;
+import org.axonframework.eventhandling.GenericTrackedDomainEventMessage;
 import org.axonframework.eventhandling.TrackedEventMessage;
-import org.axonframework.eventsourcing.GenericTrackedDomainEventMessage;
-import org.axonframework.eventsourcing.eventstore.TrackingEventStream;
+import org.axonframework.eventhandling.TrackingEventStream;
 import org.axonframework.serialization.Serializer;
 import org.axonframework.serialization.json.JacksonSerializer;
 
@@ -41,7 +41,7 @@ public class ClientNoSpring {
                 .ssl("resources/axoniq-public.crt")
                 .build();
 
-        Serializer serializer = new JacksonSerializer();
+        Serializer serializer = JacksonSerializer.builder().build();
         AxonDBEventStore eventStore = new AxonDBEventStore(axonDBConfiguration, serializer);
         try {
             TrackingEventStream stream = eventStore.openStream(null);

@@ -19,7 +19,6 @@ import org.axonframework.serialization.Converter;
 import org.axonframework.serialization.SerializedObject;
 import org.axonframework.serialization.SerializedType;
 import org.axonframework.serialization.Serializer;
-import org.axonframework.serialization.UnknownSerializedTypeException;
 
 import java.util.Map;
 
@@ -59,7 +58,7 @@ public class GrpcMetaDataAwareSerializer implements Serializer {
     }
 
     @Override
-    public Class classForType(SerializedType type) throws UnknownSerializedTypeException {
+    public Class classForType(SerializedType type) {
         return delegate.classForType(type);
     }
 

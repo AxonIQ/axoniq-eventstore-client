@@ -18,7 +18,7 @@ package io.axoniq.axondb.client.axon;
 import io.axoniq.axondb.client.AxonDBConfiguration;
 import io.axoniq.axondb.client.StubServer;
 import org.axonframework.eventhandling.GenericEventMessage;
-import org.axonframework.eventsourcing.eventstore.TrackingEventStream;
+import org.axonframework.eventhandling.TrackingEventStream;
 import org.axonframework.messaging.Message;
 import org.axonframework.messaging.unitofwork.DefaultUnitOfWork;
 import org.axonframework.messaging.unitofwork.UnitOfWork;
@@ -46,7 +46,7 @@ public class AxonDBEventStoreTest {
         AxonDBConfiguration config = AxonDBConfiguration.newBuilder("localhost:6123")
                                                                 .flowControl(2, 1, 1)
                                                                 .build();
-        testSubject = new AxonDBEventStore(config, new XStreamSerializer());
+        testSubject = new AxonDBEventStore(config, XStreamSerializer.builder().build());
     }
 
     @After

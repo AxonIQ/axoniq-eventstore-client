@@ -17,7 +17,7 @@ package com.example.command;
 
 import lombok.Builder;
 import lombok.Data;
-import org.axonframework.commandhandling.TargetAggregateIdentifier;
+import org.axonframework.modelling.command.TargetAggregateIdentifier;
 
 import javax.validation.constraints.Min;
 

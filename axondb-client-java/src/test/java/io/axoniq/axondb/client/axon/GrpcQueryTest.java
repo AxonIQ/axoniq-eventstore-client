@@ -44,7 +44,7 @@ public class GrpcQueryTest {
         AxonDBConfiguration axonDb = AxonDBConfiguration.newBuilder("localhost:6123")
                 .flowControl(10000, 9000, 1000)
                 .build();
-        axonDBEventStore = new AxonDBEventStore(axonDb, new JacksonSerializer());
+        axonDBEventStore = new AxonDBEventStore(axonDb, JacksonSerializer.builder().build());
 
     }
 

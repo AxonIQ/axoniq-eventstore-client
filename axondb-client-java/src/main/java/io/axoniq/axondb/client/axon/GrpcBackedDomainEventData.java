@@ -16,7 +16,7 @@
 package io.axoniq.axondb.client.axon;
 
 import io.axoniq.axondb.Event;
-import org.axonframework.eventsourcing.eventstore.DomainEventData;
+import org.axonframework.eventhandling.DomainEventData;
 import org.axonframework.serialization.SerializedMetaData;
 import org.axonframework.serialization.SerializedObject;
 import org.axonframework.serialization.SimpleSerializedObject;
@@ -86,7 +86,7 @@ public class GrpcBackedDomainEventData implements DomainEventData<byte[]> {
     @Override
     public SerializedObject<byte[]> getPayload() {
         String revision = event.getPayload().getRevision();
-        return new SimpleSerializedObject<>(event.getPayload().getData().toByteArray(),
+        return new SimpleSerializedObject<byte[]>(event.getPayload().getData().toByteArray(),
                                             byte[].class, event.getPayload().getType(),
                                             "".equals(revision) ? null : revision);
     }

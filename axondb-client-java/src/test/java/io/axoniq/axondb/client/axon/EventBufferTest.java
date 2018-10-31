@@ -19,9 +19,9 @@ import com.google.protobuf.ByteString;
 import io.axoniq.axondb.Event;
 import io.axoniq.axondb.grpc.EventWithToken;
 import io.axoniq.platform.SerializedObject;
+import org.axonframework.eventhandling.DomainEventMessage;
+import org.axonframework.eventhandling.GlobalSequenceTrackingToken;
 import org.axonframework.eventhandling.TrackedEventMessage;
-import org.axonframework.eventsourcing.DomainEventMessage;
-import org.axonframework.eventsourcing.eventstore.GlobalSequenceTrackingToken;
 import org.axonframework.serialization.upcasting.event.EventUpcaster;
 import org.axonframework.serialization.upcasting.event.IntermediateEventRepresentation;
 import org.axonframework.serialization.xml.XStreamSerializer;
@@ -34,10 +34,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class EventBufferTest {
     private EventUpcaster stubUpcaster;
@@ -50,7 +54,7 @@ public class EventBufferTest {
     public void setUp() throws Exception {
         stubUpcaster = mock(EventUpcaster.class);
         when(stubUpcaster.upcast(any())).thenAnswer((Answer<Stream<IntermediateEventRepresentation>>) invocationOnMock -> (Stream<IntermediateEventRepresentation>) invocationOnMock.getArguments()[0]);
-        serializer = new XStreamSerializer();
+        serializer = XStreamSerializer.builder().build();
 
         serializedObject = serializer.serialize("some object", byte[].class);
     }

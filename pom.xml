@@ -19,7 +19,7 @@
 
     <groupId>io.axoniq</groupId>
     <artifactId>axoniq-client-parent</artifactId>
-    <version>1.4-SNAPSHOT</version>
+    <version>1.3.5.axon4</version>
 
     <packaging>pom</packaging>
 
@@ -52,7 +52,7 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
 
-        <axon.version>3.3.1</axon.version>
+        <axon.version>4.0</axon.version>
         <swagger.version>2.7.0</swagger.version>
         <slf4j.version>1.7.25</slf4j.version>
         <jackson.version>2.9.0</jackson.version>

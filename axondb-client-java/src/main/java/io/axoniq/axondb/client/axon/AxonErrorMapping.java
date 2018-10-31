@@ -16,10 +16,10 @@
 package io.axoniq.axondb.client.axon;
 
 import io.axoniq.axondb.client.util.EventStoreClientException;
-import org.axonframework.commandhandling.model.AggregateRolledBackException;
-import org.axonframework.commandhandling.model.ConcurrencyException;
 import org.axonframework.common.AxonException;
 import org.axonframework.eventsourcing.eventstore.EventStoreException;
+import org.axonframework.modelling.command.AggregateRolledBackException;
+import org.axonframework.modelling.command.ConcurrencyException;
 
 import java.util.Arrays;
 import java.util.concurrent.TimeoutException;

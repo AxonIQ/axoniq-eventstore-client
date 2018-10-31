@@ -19,7 +19,7 @@ import io.axoniq.axondb.client.AxonDBConfiguration;
 import io.axoniq.axondb.client.axon.AxonDBEventStore;
 import io.axoniq.axondb.performancetest.TestAggregate;
 import io.axoniq.axondb.performancetest.TestEvent;
-import org.axonframework.eventsourcing.GenericDomainEventMessage;
+import org.axonframework.eventhandling.GenericDomainEventMessage;
 import org.axonframework.messaging.unitofwork.DefaultUnitOfWork;
 import org.axonframework.serialization.Serializer;
 import org.axonframework.serialization.json.JacksonSerializer;
@@ -42,8 +42,8 @@ public class MultipleSerializers {
         AxonDBConfiguration axonDBConfiguration = AxonDBConfiguration.newBuilder("localhost")
                                                                                  .build();
 
-        Serializer serializer = new XStreamSerializer();
-        Serializer eventSerializer = new JacksonSerializer();
+        Serializer serializer = XStreamSerializer.builder().build();
+        Serializer eventSerializer = JacksonSerializer.builder().build();
         AxonDBEventStore eventStore = new AxonDBEventStore(axonDBConfiguration, serializer, eventSerializer, NoOpEventUpcaster.INSTANCE);
         String aggregateId = UUID.randomUUID().toString();
 

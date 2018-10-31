@@ -16,9 +16,14 @@
 package io.axoniq.axondb.client.axon;
 
 import io.axoniq.axondb.grpc.EventWithToken;
+import org.axonframework.eventhandling.EventUtils;
+import org.axonframework.eventhandling.GlobalSequenceTrackingToken;
+import org.axonframework.eventhandling.TrackedDomainEventData;
+import org.axonframework.eventhandling.TrackedEventData;
 import org.axonframework.eventhandling.TrackedEventMessage;
-import org.axonframework.eventsourcing.eventstore.*;
-import org.axonframework.serialization.*;
+import org.axonframework.eventhandling.TrackingEventStream;
+import org.axonframework.eventhandling.TrackingToken;
+import org.axonframework.serialization.Serializer;
 import org.axonframework.serialization.upcasting.event.EventUpcaster;
 import org.axonframework.serialization.upcasting.event.NoOpEventUpcaster;
 import org.slf4j.Logger;
@@ -71,8 +76,7 @@ public class EventBuffer implements TrackingEventStream {
         this.events = new LinkedBlockingQueue<>();
         eventStream = EventUtils.upcastAndDeserializeTrackedEvents(StreamSupport.stream(new SimpleSpliterator<>(this::poll), false),
                                                                    new GrpcMetaDataAwareSerializer(serializer),
-                                                                   getOrDefault(upcasterChain, NoOpEventUpcaster.INSTANCE),
-                                                                   true)
+                                                                   getOrDefault(upcasterChain, NoOpEventUpcaster.INSTANCE))
                                 .iterator();
     }
 
