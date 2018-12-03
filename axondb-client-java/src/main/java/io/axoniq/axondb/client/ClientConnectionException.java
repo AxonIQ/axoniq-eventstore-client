@@ -29,4 +29,13 @@ public class ClientConnectionException extends RuntimeException {
     public ClientConnectionException(String message, Throwable cause) {
         super(message, cause);
     }
+
+    /**
+     * Initialize the exception with given {@code message}
+     *
+     * @param message A message describing the error
+     */
+    public ClientConnectionException(String message) {
+        super(message);
+    }
 }

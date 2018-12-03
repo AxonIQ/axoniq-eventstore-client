@@ -15,10 +15,11 @@
 
 package io.axoniq.axondb.client.axon;
 
+import io.axoniq.axondb.client.ClientConnectionException;
 import io.axoniq.axondb.grpc.EventWithToken;
 import org.axonframework.eventhandling.TrackedEventMessage;
 import org.axonframework.eventsourcing.eventstore.*;
-import org.axonframework.serialization.*;
+import org.axonframework.serialization.Serializer;
 import org.axonframework.serialization.upcasting.event.EventUpcaster;
 import org.axonframework.serialization.upcasting.event.NoOpEventUpcaster;
 import org.slf4j.Logger;
@@ -30,10 +31,12 @@ import java.util.Spliterator;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.StreamSupport;
 
+import static java.lang.Math.min;
 import static org.axonframework.common.ObjectUtils.getOrDefault;
 
 /**
@@ -51,7 +54,8 @@ public class EventBuffer implements TrackingEventStream {
     private final BlockingQueue<TrackedEventData<byte[]>> events;
 
     private final Iterator<TrackedEventMessage<?>> eventStream;
-
+    private final int heartbeatInterval;
+    private final AtomicLong lastServerInteraction = new AtomicLong(System.currentTimeMillis());
     private TrackedEventData<byte[]> peekData;
     private TrackedEventMessage<?> peekEvent;
     private Consumer<EventBuffer> closeCallback;
@@ -64,11 +68,18 @@ public class EventBuffer implements TrackingEventStream {
      * Initializes an Event Buffer, passing messages through given {@code upcasterChain} and deserializing events using
      * given {@code serializer}.
      *
-     * @param upcasterChain The upcasterChain to translate serialized representations before deserializing
-     * @param serializer    The serializer capable of deserializing incoming messages
+     * @param upcasterChain     The upcasterChain to translate serialized representations before deserializing
+     * @param serializer        The serializer capable of deserializing incoming messages
+     * @param heartbeatInterval The interval at which heartbeat messages are excpected to arrive, when no events are
+     *                          being streamed.
      */
-    public EventBuffer(EventUpcaster upcasterChain, Serializer serializer) {
-        this.events = new LinkedBlockingQueue<>();
+    public EventBuffer(EventUpcaster upcasterChain, Serializer serializer, int heartbeatInterval) {
+        this(upcasterChain, serializer, heartbeatInterval, new LinkedBlockingQueue<>());
+    }
+
+    protected EventBuffer(EventUpcaster upcasterChain, Serializer serializer, int heartbeatInterval, BlockingQueue<TrackedEventData<byte[]>> events) {
+        this.heartbeatInterval = heartbeatInterval;
+        this.events = events;
         eventStream = EventUtils.upcastAndDeserializeTrackedEvents(StreamSupport.stream(new SimpleSpliterator<>(this::poll), false),
                                                                    new GrpcMetaDataAwareSerializer(serializer),
                                                                    getOrDefault(upcasterChain, NoOpEventUpcaster.INSTANCE),
@@ -92,10 +103,17 @@ public class EventBuffer implements TrackingEventStream {
 
     private void waitForData(long deadline) throws InterruptedException {
         long now = System.currentTimeMillis();
-        if (peekData == null && now < deadline) {
-            peekData = events.poll(deadline - now, TimeUnit.MILLISECONDS);
+        long timeLeft = deadline - now;
+        if (peekData == null && timeLeft > 0) {
+            peekData = events.poll(heartbeatInterval > 0 ? min(heartbeatInterval, timeLeft) : timeLeft, TimeUnit.MILLISECONDS);
             if (peekData != null) {
                 consumeListener.accept(1);
+            } else if (heartbeatInterval > 0) {
+                // no data. Check last time
+                if (lastServerInteraction.get() < System.currentTimeMillis() - (2 * heartbeatInterval)) {
+                    fail(new ClientConnectionException("Connection timed out"));
+                    close();
+                }
             }
         }
     }
@@ -168,11 +186,12 @@ public class EventBuffer implements TrackingEventStream {
     }
 
     public boolean push(EventWithToken event) {
-        if( closed) {
+        if (closed) {
             logger.debug("Received event while closed: {}", event.getToken());
             return false;
         }
         try {
+            touch();
             TrackingToken trackingToken = new GlobalSequenceTrackingToken(event.getToken());
             events.put(new TrackedDomainEventData<>(trackingToken, new GrpcBackedDomainEventData(event.getEvent())));
         } catch (InterruptedException e) {
@@ -184,6 +203,10 @@ public class EventBuffer implements TrackingEventStream {
 
     public void fail(RuntimeException e) {
         this.exception = e;
+    }
+
+    public void touch() {
+        this.lastServerInteraction.set(System.currentTimeMillis());
     }
 
     private static class SimpleSpliterator<T> implements Spliterator<T> {

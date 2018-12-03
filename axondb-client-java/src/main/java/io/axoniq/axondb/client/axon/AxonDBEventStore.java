@@ -21,26 +21,13 @@ import io.axoniq.axondb.client.AppendEventTransaction;
 import io.axoniq.axondb.client.AxonDBClient;
 import io.axoniq.axondb.client.AxonDBConfiguration;
 import io.axoniq.axondb.client.util.FlowControllingStreamObserver;
-import io.axoniq.axondb.grpc.EventWithToken;
-import io.axoniq.axondb.grpc.GetAggregateEventsRequest;
-import io.axoniq.axondb.grpc.GetEventsRequest;
-import io.axoniq.axondb.grpc.QueryEventsRequest;
-import io.axoniq.axondb.grpc.QueryEventsResponse;
-import io.axoniq.axondb.grpc.ReadHighestSequenceNrResponse;
+import io.axoniq.axondb.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.axonframework.common.Assert;
 import org.axonframework.eventhandling.EventMessage;
 import org.axonframework.eventsourcing.DomainEventMessage;
 import org.axonframework.eventsourcing.GenericDomainEventMessage;
-import org.axonframework.eventsourcing.eventstore.AbstractEventStorageEngine;
-import org.axonframework.eventsourcing.eventstore.AbstractEventStore;
-import org.axonframework.eventsourcing.eventstore.DomainEventData;
-import org.axonframework.eventsourcing.eventstore.DomainEventStream;
-import org.axonframework.eventsourcing.eventstore.EventStoreException;
-import org.axonframework.eventsourcing.eventstore.EventUtils;
-import org.axonframework.eventsourcing.eventstore.GlobalSequenceTrackingToken;
-import org.axonframework.eventsourcing.eventstore.TrackedEventData;
-import org.axonframework.eventsourcing.eventstore.TrackingEventStream;
+import org.axonframework.eventsourcing.eventstore.*;
 import org.axonframework.eventsourcing.eventstore.TrackingToken;
 import org.axonframework.messaging.unitofwork.CurrentUnitOfWork;
 import org.axonframework.serialization.MessageSerializer;
@@ -98,10 +85,11 @@ public class AxonDBEventStore extends AbstractEventStore {
     /**
      * Initialize the Event Store using given {@code configuration}, {@code serializer} and {@code upcasterChain}
      * Allows for different serializers for snapshots and events (requires AxonFramework version 3.3 or higer)
-     * @param configuration The configuration describing the servers to connect with and how to manage flow control
-     * @param snapshotSerializer    The serializer to serialize Snapshot payloads with
-     * @param eventSerializer   The serializer to serialize Event payloads with
-     * @param upcasterChain The upcaster to modify received Event representations with
+     *
+     * @param configuration      The configuration describing the servers to connect with and how to manage flow control
+     * @param snapshotSerializer The serializer to serialize Snapshot payloads with
+     * @param eventSerializer    The serializer to serialize Event payloads with
+     * @param upcasterChain      The upcaster to modify received Event representations with
      */
     public AxonDBEventStore(AxonDBConfiguration configuration, Serializer snapshotSerializer, Serializer eventSerializer, EventUpcaster upcasterChain) {
         super(new AxonIQEventStorageEngine(snapshotSerializer, eventSerializer, upcasterChain, configuration, new AxonDBClient(configuration)));
@@ -186,9 +174,9 @@ public class AxonDBEventStore extends AbstractEventStore {
             SerializedObject<byte[]> serializedPayload = MessageSerializer.serializePayload(eventMessage, serializer, byte[].class);
             builder.setMessageIdentifier(eventMessage.getIdentifier())
                    .setPayload(io.axoniq.platform.SerializedObject.newBuilder()
-                                                                    .setType(serializedPayload.getType().getName())
-                                                                    .setRevision(getOrDefault(serializedPayload.getType().getRevision(), ""))
-                                                                    .setData(ByteString.copyFrom(serializedPayload.getData())))
+                                                                  .setType(serializedPayload.getType().getName())
+                                                                  .setRevision(getOrDefault(serializedPayload.getType().getRevision(), ""))
+                                                                  .setData(ByteString.copyFrom(serializedPayload.getData())))
                    .setTimestamp(eventMessage.getTimestamp().toEpochMilli());
             eventMessage.getMetaData().forEach((k, v) -> builder.putMetaData(k, converter.convertToMetaDataValue(v)));
             return builder.build();
@@ -236,14 +224,21 @@ public class AxonDBEventStore extends AbstractEventStore {
             Assert.isTrue(trackingToken == null || trackingToken instanceof GlobalSequenceTrackingToken,
                           () -> "Invalid tracking token type. Must be GlobalSequenceTrackingToken.");
             long nextToken = trackingToken == null ? 0 : ((GlobalSequenceTrackingToken) trackingToken).getGlobalIndex() + 1;
-            EventBuffer consumer = new EventBuffer(upcasterChain, getEventSerializer());
+            EventBuffer consumer = new EventBuffer(upcasterChain, getEventSerializer(), configuration.getHeartbeatInterval());
 
             logger.info("open stream: {}", nextToken);
             StreamObserver<GetEventsRequest> requestStream = eventStoreClient.listEvents(new StreamObserver<EventWithToken>() {
+
                 @Override
                 public void onNext(EventWithToken eventWithToken) {
-                    logger.debug("Received event with token: {}", eventWithToken.getToken());
-                    consumer.push(eventWithToken);
+                    if (Event.getDefaultInstance().equals(eventWithToken.getEvent())) {
+                        // this is a hearbeat
+                        logger.debug("Heartbeat received...");
+                        consumer.touch();
+                    } else {
+                        logger.debug("Received event with token: {}", eventWithToken.getToken());
+                        consumer.push(eventWithToken);
+                    }
                 }
 
                 @Override
@@ -254,20 +249,22 @@ public class AxonDBEventStore extends AbstractEventStore {
 
                 @Override
                 public void onCompleted() {
-
+                    consumer.fail(new EventStoreException("Connection to server has been closed"));
                 }
             });
             FlowControllingStreamObserver<GetEventsRequest> observer = new FlowControllingStreamObserver<>(
-                    requestStream, configuration, t-> GetEventsRequest.newBuilder().setNumberOfPermits(t).build(), t-> false);
+                    requestStream, configuration, t -> GetEventsRequest.newBuilder()
+                                                                       .setNumberOfPermits(t).build(), t -> false);
 
             GetEventsRequest request = GetEventsRequest.newBuilder()
-                    .setTrackingToken(nextToken)
-                    .setNumberOfPermits(configuration.getInitialNrOfPermits())
-                    .build();
+                                                       .setTrackingToken(nextToken)
+                                                       .setNumberOfPermits(configuration.getInitialNrOfPermits())
+                                                       .setHeartbeatInterval(configuration.getHeartbeatInterval())
+                                                       .build();
             observer.onNext(request);
 
             consumer.registerCloseListener((eventConsumer) -> observer.onCompleted());
-//                                                   observer.onError( new RuntimeException("Closed by client")));
+
             consumer.registerConsumeListener(observer::markConsumed);
             return consumer;
         }
@@ -294,13 +291,13 @@ public class AxonDBEventStore extends AbstractEventStore {
                 }
             });
             FlowControllingStreamObserver<QueryEventsRequest> observer = new FlowControllingStreamObserver<>(
-                    requestStream, configuration, t-> QueryEventsRequest.newBuilder().setNumberOfPermits(t).build(), t-> false);
+                    requestStream, configuration, t -> QueryEventsRequest.newBuilder().setNumberOfPermits(t).build(), t -> false);
 
             observer.onNext(QueryEventsRequest.newBuilder()
-                    .setQuery(query)
-                    .setNumberOfPermits(configuration.getInitialNrOfPermits())
-                    .setLiveEvents(liveUpdates)
-                    .build());
+                                              .setQuery(query)
+                                              .setNumberOfPermits(configuration.getInitialNrOfPermits())
+                                              .setLiveEvents(liveUpdates)
+                                              .build());
 
             consumer.registerCloseListener((eventConsumer) -> observer.onCompleted());
             consumer.registerConsumeListener(observer::markConsumed);
@@ -314,19 +311,19 @@ public class AxonDBEventStore extends AbstractEventStore {
             return DomainEventStream.of(input.map(this::upcastAndDeserializeDomainEvent).filter(Objects::nonNull));
         }
 
-        private  DomainEventMessage<?> upcastAndDeserializeDomainEvent(DomainEventData<?> domainEventData) {
+        private DomainEventMessage<?> upcastAndDeserializeDomainEvent(DomainEventData<?> domainEventData) {
             DomainEventStream upcastedStream = EventUtils.upcastAndDeserializeDomainEvents(Stream.of(domainEventData),
-                                                                                                new GrpcMetaDataAwareSerializer(
-                                                                                                        isSnapshot(
-                                                                                                                domainEventData) ? getSerializer() : getEventSerializer()),
-                                                                                                upcasterChain,
-                                                                                                false);
+                                                                                           new GrpcMetaDataAwareSerializer(
+                                                                                                   isSnapshot(
+                                                                                                           domainEventData) ? getSerializer() : getEventSerializer()),
+                                                                                           upcasterChain,
+                                                                                           false);
             return upcastedStream.hasNext() ? upcastedStream.next() : null;
         }
 
         private boolean isSnapshot(DomainEventData<?> domainEventData) {
-            if( domainEventData instanceof GrpcBackedDomainEventData) {
-                GrpcBackedDomainEventData grpcBackedDomainEventData = (GrpcBackedDomainEventData)domainEventData;
+            if (domainEventData instanceof GrpcBackedDomainEventData) {
+                GrpcBackedDomainEventData grpcBackedDomainEventData = (GrpcBackedDomainEventData) domainEventData;
                 return grpcBackedDomainEventData.isSnapshot();
             }
             return false;
@@ -347,8 +344,8 @@ public class AxonDBEventStore extends AbstractEventStore {
         public TrackingToken createTailToken() {
             try {
                 io.axoniq.axondb.grpc.TrackingToken token = eventStoreClient.getFirstToken().get();
-                if( token.getToken() < 0) return null;
-                return new GlobalSequenceTrackingToken(token.getToken()-1);
+                if (token.getToken() < 0) return null;
+                return new GlobalSequenceTrackingToken(token.getToken() - 1);
             } catch (Throwable e) {
                 throw AxonErrorMapping.convert(e);
             }
@@ -368,8 +365,8 @@ public class AxonDBEventStore extends AbstractEventStore {
         public TrackingToken createTokenAt(Instant instant) {
             try {
                 io.axoniq.axondb.grpc.TrackingToken token = eventStoreClient.getTokenAt(instant).get();
-                if( token.getToken() < 0) return null;
-                return new GlobalSequenceTrackingToken(token.getToken()-1);
+                if (token.getToken() < 0) return null;
+                return new GlobalSequenceTrackingToken(token.getToken() - 1);
             } catch (Throwable e) {
                 throw AxonErrorMapping.convert(e);
             }
