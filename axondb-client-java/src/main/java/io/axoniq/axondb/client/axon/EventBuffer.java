@@ -145,16 +145,16 @@ public class EventBuffer implements TrackingEventStream {
     }
 
     @Override
-    public boolean hasNextAvailable(int timeout, TimeUnit timeUnit) throws InterruptedException {
+    public boolean hasNextAvailable(int timeout, TimeUnit timeUnit)  {
         long deadline = System.currentTimeMillis() + timeUnit.toMillis(timeout);
         try {
-            while (peekEvent == null && !eventStream.hasNext() && System.currentTimeMillis() < deadline) {
-                if (exception != null) {
-                    RuntimeException runtimeException = exception;
-                    this.exception = null;
-                    throw runtimeException;
-                }
+            while (exception == null && peekEvent == null && !eventStream.hasNext() && System.currentTimeMillis() < deadline) {
                 waitForData(deadline);
+            }
+            if (exception != null) {
+                RuntimeException runtimeException = exception;
+                this.exception = null;
+                throw runtimeException;
             }
             return peekEvent != null || eventStream.hasNext();
         } catch (InterruptedException e) {
@@ -165,14 +165,10 @@ public class EventBuffer implements TrackingEventStream {
     }
 
     @Override
-    public TrackedEventMessage<?> nextAvailable() throws InterruptedException {
+    public TrackedEventMessage<?> nextAvailable() {
         try {
             hasNextAvailable(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
             return peekEvent == null ? eventStream.next() : peekEvent;
-        } catch (InterruptedException e) {
-            logger.warn("Consumer thread was interrupted. Returning thread to event processor.", e);
-            Thread.currentThread().interrupt();
-            return null;
         } finally {
             peekEvent = null;
         }
