@@ -112,5 +112,6 @@ message GetEventsRequest {
     string client = 3;
     string component = 4;
     string processor = 5;
+    int32 heartbeat_interval = 6;
 }
 

@@ -75,6 +75,12 @@ public class AxonDBConfiguration {
      */
     private long commitTimeout = 10000;
 
+    /**
+     * Interval at which the server is requested to send a heartbeat on open event streams, when no
+     * events are sent.
+     */
+    private int heartbeatInterval = 60000;
+
     public AxonDBConfiguration() {
     }
 
@@ -222,6 +228,14 @@ public class AxonDBConfiguration {
         this.commitTimeout = commitTimeout;
     }
 
+    public int getHeartbeatInterval() {
+        return heartbeatInterval;
+    }
+
+    public void setHeartbeatInterval(int heartbeatInterval) {
+        this.heartbeatInterval = heartbeatInterval;
+    }
+
     public static class Builder {
         private AxonDBConfiguration instance;
 
@@ -268,6 +282,11 @@ public class AxonDBConfiguration {
 
         public Builder eventCipher(EventCipher eventCipher) {
             instance.eventCipher = eventCipher;
+            return this;
+        }
+
+        public Builder heartbeatInterval(int heartbeatInterval) {
+            instance.setHeartbeatInterval(heartbeatInterval);
             return this;
         }
 

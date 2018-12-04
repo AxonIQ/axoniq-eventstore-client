@@ -36,9 +36,10 @@ public class ClientNoSpring {
         AxonDBConfiguration axonDBConfiguration = AxonDBConfiguration
                 .newBuilder("eventstore.axoniq.io:8123")
                 .flowControl(0, 10000, 1000)
+                .heartbeatInterval(1000)
                 .token("4e173955-f887-465a-a7d8-2fdbca7e4e37")
                 .connectionRetry(1000, 3)
-                .ssl("resources/axoniq-public.crt")
+//                .ssl("resources/axoniq-public.crt")
                 .build();
 
         Serializer serializer = new JacksonSerializer();
